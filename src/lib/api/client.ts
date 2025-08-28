@@ -25,9 +25,7 @@ apiClient.interceptors.request.use(
     // With httpOnly cookies, we don't need to manually add Authorization header
     // The browser will automatically send the cookies with each request
     // Just log that we're making a request
-    console.log(
-      "Making authenticated request (httpOnly cookies will be sent automatically)"
-    );
+  
     return config;
   },
   (error) => {
@@ -60,12 +58,7 @@ const processQueue = (error: unknown, token: string | null = null) => {
 // Response interceptor with automatic token refresh
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
-    // Debug logging
-    console.log("API Response:", {
-      status: response.status,
-      url: response.config.url,
-      data: response.data,
-    });
+ 
 
     // Check if this is a logout response
     if (response.config.url?.includes("/logout") && response.status === 200) {
@@ -108,7 +101,7 @@ apiClient.interceptors.response.use(
         // Just attempt to refresh - if it fails, the backend will return 401
         const response = await apiClient.post("/refresh");
         if (response.status === 200) {
-          console.log("Token refreshed successfully via interceptor");
+          
           // Token refreshed successfully, retry original request
           processQueue(null, null);
           return apiClient(originalRequest);

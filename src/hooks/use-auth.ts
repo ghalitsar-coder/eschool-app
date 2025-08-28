@@ -1,11 +1,11 @@
 // useAuth with TanStack Query integration
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LoginRequest, RegisterRequest, User } from "../types/api";
 import { useCallback } from "react";
 import { useAuthStore } from "@/lib/stores/auth";
 import { authApi } from "@/lib/api/auth";
 import apiClient from "@/lib/api/client";
 import { useTokenCheck } from "./use-token-check";
+import { ApiResponse, LoginResponse } from "@/types/api";
 
 // Query keys for better cache management
 export const authQueryKeys = {
@@ -13,38 +13,20 @@ export const authQueryKeys = {
   user: ["auth", "user"] as const,
 };
 
+
+
 export const useLogin = () => {
   const { login } = useAuthStore();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: authApi.login,
-    onSuccess: (data) => {
+    onSuccess: (response:ApiResponse<LoginResponse>) => {
+    
 
-      // Handle response structure: { data: { user: {...}, role: "..." }, message: "..." }
-      // Token is sent via cookies, not in response body
-      if (data.data && data.data.user) {
-        const userData = {
-          ...data.data.user,
-          role: data.data.role || data.data.user.role,
-        };
+    login(response.data.user); // Type assertion for now
 
-        login(userData as any); // Type assertion for now
-
-        // Store in localStorage (token will be read from cookies by API client)
-        const authStorage = {
-          state: {
-            user: userData,
-            isAuthenticated: true,
-            token: null, // Token is in cookies, not localStorage
-          },
-        };
-        localStorage.setItem("auth-storage", JSON.stringify(authStorage));
-      } else {
-        throw new Error(data.message || "Invalid login response");
-      }
-
-      // Invalidate and refetch user-related queries
+  
       queryClient.invalidateQueries({
         queryKey: authQueryKeys.profile,
       });
@@ -61,7 +43,7 @@ export const useRegister = () => {
     mutationFn: authApi.register,
     onSuccess: (data) => {
       if (data.data) {
-        console.log("Registrasi berhasil. Silakan login.");
+        
       } else {
         throw new Error(data.message || "Registrasi gagal");
       }
@@ -92,22 +74,22 @@ export const useLogout = () => {
   });
 };
 
-export const useProfile = () => {
-  const { user, isAuthenticated } = useAuthStore();
+// export const useProfile = () => {
+//   const { user, isAuthenticated } = useAuthStore();
 
-  return useQuery({
-    queryKey: authQueryKeys.profile,
-    queryFn: authApi.getProfile,
-    enabled: !!user && isAuthenticated,
-    select: (data) => data.data,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error: unknown) => {
-      // Don't retry on 401 errors
-      if (error?.response?.status === 401) return false;
-      return failureCount < 3;
-    },
-  });
-};
+//   return useQuery({
+//     queryKey: authQueryKeys.profile,
+//     queryFn: authApi.getProfile,
+//     enabled: !!user && isAuthenticated,
+//     select: (data) => data.data,
+//     staleTime: 5 * 60 * 1000, // 5 minutes
+//     retry: (failureCount, error: unknown) => {
+//       // Don't retry on 401 errors
+//       if (error?.response?.status === 401) return false;
+//       return failureCount < 3;
+//     },
+//   });
+// };
 
 export const useCurrentUser = () => {
   const { isAuthenticated, setUser, logout } = useAuthStore();
@@ -141,7 +123,7 @@ export const useChangePassword = () => {
     mutationFn: authApi.changePassword,
     onSuccess: (data) => {
       if (data.data) {
-        console.log("Password berhasil diubah");
+        
       } else {
         throw new Error(data.message || "Gagal mengubah password");
       }
@@ -158,35 +140,17 @@ export const useRefreshToken = () => {
 
   return useMutation({
     mutationFn: authApi.refresh,
-    onSuccess: (data) => {
-      console.log("Refresh token response:", data);
-      if (data.data && data.data.user) {
-        const userData = {
-          ...data.data.user,
-          role: data.data.role || data.data.user.role,
-        };
+    onSuccess: (data : LoginResponse) => {
+      
+       setUser(data.user);
 
-        console.log("Updating user data from refresh:", userData);
-        setUser(userData as unknown);
-
-        // Update localStorage (token is in cookies)
-        const authStorage = {
-          state: {
-            user: userData,
-            isAuthenticated: true,
-            token: null, // Token is in cookies
-          },
-        };
-        localStorage.setItem("auth-storage", JSON.stringify(authStorage));
+         
 
         // Invalidate queries to refetch with new token
         queryClient.invalidateQueries({
           queryKey: authQueryKeys.profile,
         });
         queryClient.invalidateQueries({ queryKey: authQueryKeys.user });
-      } else {
-        throw new Error(data.message || "Token refresh failed");
-      }
     },
     onError: () => {
       logout();
@@ -202,11 +166,6 @@ export const useAuth = () => {
 
   // Initialize auth state on mount
   const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
-
-  // Debug logging
- 
-
-  // Token check functionality
 
   // Helper method for making authenticated API requests
   const apiRequest = useCallback(
@@ -254,7 +213,7 @@ export const useAuth = () => {
     refreshTokenMutation: useRefreshToken(),
 
     // Queries
-    profileQuery: useProfile(),
+    // profileQuery: useProfile(),
 
     // Actions
     updateUser,

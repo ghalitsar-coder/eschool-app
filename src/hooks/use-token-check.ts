@@ -18,19 +18,19 @@ export const useTokenCheck = () => {
         .split(";")
         .some((cookie) => cookie.trim().startsWith("refresh_token="));
 
-      console.log("Token check:", { tokenExists, refreshTokenExists });
+      
 
       // If no token but refresh token exists, try to refresh
       if (!tokenExists && refreshTokenExists) {
-        console.log("Attempting to refresh token...");
+        
         const response = await authApi.refresh();
 
         if (response.data) {
-          console.log("Token refreshed successfully");
+          
           setUser(response.data.user);
           return true;
         } else {
-          console.log("Token refresh failed");
+          
           logout();
           return false;
         }
@@ -38,7 +38,7 @@ export const useTokenCheck = () => {
 
       // If no tokens at all, logout
       if (!tokenExists && !refreshTokenExists) {
-        console.log("No tokens found, logging out");
+        
         logout();
         return false;
       }

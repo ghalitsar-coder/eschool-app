@@ -58,79 +58,7 @@ export interface KasRecordsResponse {
 }
 
 export const kasApi = {
-  // Get members for current treasurer's eschool
-  getMembers: async (): Promise<MembersResponse> => {
-    console.log("🚀 getMembers API called!");
-    try {
-      const response = await apiClient.get("/members");
-
-      // Handle both mock data and real data
-      if (response.data.eschool && response.data.members) {
-        return response.data;
-      }
-
-      // Handle the "hello world" response from backend (fallback)
-      if (response.data.message === "hello world") {
-        // Return mock data that matches the expected structure
-        return {
-          eschool: {
-            id: 1,
-            name: "Kelas XII IPA 1", // Match with summary data
-            monthly_kas_amount: 25000, // Match with summary data
-          },
-          members: [
-            {
-              id: 1,
-              student_id: "12345",
-              name: "Andi Pratama",
-              email: "andi@example.com",
-              phone: "081234567890",
-            },
-            {
-              id: 2,
-              student_id: "12346",
-              name: "Sari Indah",
-              email: "sari@example.com",
-              phone: "081234567891",
-            },
-            {
-              id: 3,
-              student_id: "12347",
-              name: "Rudi Hermawan",
-              email: "rudi@example.com",
-              phone: "081234567892",
-            },
-            {
-              id: 4,
-              student_id: "12348",
-              name: "Maya Sari",
-              email: "maya@example.com",
-              phone: "081234567893",
-            },
-            {
-              id: 5,
-              student_id: "12349",
-              name: "Doni Setiawan",
-              email: "doni@example.com",
-              phone: "081234567894",
-            },
-            {
-              id: 6,
-              student_id: "12350",
-              name: "Lina Marlina",
-              email: "lina@example.com",
-              phone: "081234567895",
-            },
-          ],
-        };
-      }
-
-      return response.data;
-    } catch (error) {
-      console.error("Error fetching members:", error);
-      throw error;
-    }
-  },
+ 
 
   // Add income record with payments
   addIncome: async (
@@ -165,10 +93,10 @@ export const kasApi = {
     year?: number;
     page?: number;
   }): Promise<KasRecordsResponse> => {
-    console.log("🚀 getKasRecords API called!");
+    
     try {
       const response = await apiClient.get("/kas/records", { params });
-      console.log("Kas records API response:", response.data);
+      
 
       // Convert string amounts to numbers for consistency
       const data = response.data;
@@ -193,10 +121,10 @@ export const kasApi = {
 
   // Get kas summary for dashboard
   getSummary: async (): Promise<KasSummary> => {
-    console.log("🚀 getSummary API called!");
+    
     try {
       const response = await apiClient.get("/kas/summary");
-      console.log("Kas summary API response:", response.data);
+      
 
       // Convert string numbers to actual numbers for consistency
       const data = response.data;

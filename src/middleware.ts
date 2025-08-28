@@ -17,46 +17,17 @@ export async function middleware(request: NextRequest) {
   const authToken = request.cookies.get("token")?.value;
   const refreshToken = request.cookies.get("refresh_token")?.value;
 
-  console.log(`Auth Token:`, authToken ? "exists" : "missing");
-  console.log(`Refresh Token:`, refreshToken ? "exists" : "missing");
-
   // If it's a protected path
   if (isProtectedPath) {
-    // If no auth token but refresh token exists, try to refresh
-    if (!authToken && refreshToken) {
-      try {
-        const refreshResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/refresh`,
-          {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-          }
-        );
-
-        if (refreshResponse.ok) {
-          // Token refreshed successfully, continue with request
-          console.log("Token refreshed successfully in middleware");
-          return NextResponse.next();
-        } else {
-          // Refresh failed, redirect to login
-          console.log("Token refresh failed in middleware");
-          const loginUrl = new URL("/login", request.url);
-          loginUrl.searchParams.set("redirect", path);
-          return NextResponse.redirect(loginUrl);
-        }
-      } catch (error) {
-        console.error("Error refreshing token in middleware:", error);
-        const loginUrl = new URL("/login", request.url);
-        loginUrl.searchParams.set("redirect", path);
-        return NextResponse.redirect(loginUrl);
-      }
+    // CHANGED: If we have either token OR refresh token, allow access
+    // Let the API client handle the refresh logic
+    if (authToken || refreshToken) {
+      // User has some form of authentication, let them through
+      // API client will handle token refresh if needed
+      return NextResponse.next();
     }
 
-    // If no tokens at all, redirect to login
+    // Only redirect to login if NO tokens at all
     if (!authToken && !refreshToken) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", path);
@@ -78,13 +49,6 @@ export async function middleware(request: NextRequest) {
 // Configure which paths the middleware should run on
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };

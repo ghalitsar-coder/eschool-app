@@ -1,8 +1,13 @@
 "use client";
 
 import { useKasManagement } from "@/hooks/use-kas";
-import React, { useState } from "react";
-import { useForm, useFieldArray, FormProvider } from "react-hook-form";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  useForm,
+  useFieldArray,
+  FormProvider,
+  useWatch,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -69,7 +74,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from 'date-fns';
+import { format } from "date-fns";
+import apiClient from "@/lib/api/client";
 
 // Form schema
 const incomeSchema = z.object({
@@ -147,6 +153,7 @@ const KasManagement: React.FC = () => {
   const [showIncomeDialog, setShowIncomeDialog] = useState(false);
   const [showExpenseDialog, setShowExpenseDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [paymentErrors, setPaymentErrors] = useState<string[]>([]);
 
   // Forms
   const incomeForm = useForm<IncomeFormData>({
@@ -157,13 +164,14 @@ const KasManagement: React.FC = () => {
       payments: [{ member_id: "", amount: "", month: "", year: "" }],
     },
   });
-  // console.log(`THIS IS  ~ incomeForm:`, incomeForm);
+  //
 
   const { fields, append, remove } = useFieldArray({
     control: incomeForm.control,
     name: "payments",
   });
-  // console.log(`THIS IS  ~ fields:`, fields);
+
+  //
 
   const expenseForm = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseSchema),
@@ -199,11 +207,70 @@ const KasManagement: React.FC = () => {
     );
   };
 
+  const payments = useWatch({
+    control: incomeForm.control,
+    name: "payments",
+  });
+  const debounceTimers = useRef<NodeJS.Timeout[]>([]);
+
   const filteredRecords = records.filter(
     (record) =>
       record.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       record.type.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Check for existing payments
+  useEffect(() => {
+    const checkPayments = async () => {
+      const newErrors = Array(fields.length).fill("");
+
+      for (let index = 0; index < fields.length; index++) {
+        const payment = payments[index];
+        if (payment?.member_id && payment?.month && payment?.year) {
+          clearTimeout(debounceTimers.current[index]);
+          debounceTimers.current[index] = setTimeout(async () => {
+            try {
+              const response = await apiClient.get("/kas/check-payment", {
+                params: {
+                  member_id: payment.member_id,
+                  month: payment.month,
+                  year: payment.year,
+                },
+              });
+              if (response.data.exists) {
+                newErrors[
+                  index
+                ] = `Member sudah membayar di bulan ${payment.month} tahun ${payment.year}`;
+                incomeForm.setError(`payments.${index}.member_id`, {
+                  message: newErrors[index],
+                });
+              } else {
+                incomeForm.clearErrors(`payments.${index}.member_id`);
+                newErrors[index] = "";
+              }
+            } catch (err) {
+              newErrors[index] = "Gagal memeriksa pembayaran";
+              incomeForm.setError(`payments.${index}.member_id`, {
+                message: newErrors[index],
+              });
+            } finally {
+              setPaymentErrors(newErrors);
+            }
+          }, 500); // Debounce 500ms
+        } else {
+          incomeForm.clearErrors(`payments.${index}.member_id`);
+          newErrors[index] = "";
+        }
+      }
+      setPaymentErrors(newErrors);
+    };
+
+    checkPayments();
+
+    return () => {
+      debounceTimers.current.forEach((timer) => clearTimeout(timer));
+    };
+  }, [payments, incomeForm, fields.length]);
 
   if (isLoadingSummary || isLoadingRecords || isLoadingMembers) {
     return (
@@ -239,6 +306,8 @@ const KasManagement: React.FC = () => {
     addIncomeError ||
     addExpenseError ||
     exportError;
+
+  const hasPaymentErrors = paymentErrors.some((error) => error);
 
   return (
     <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
@@ -400,48 +469,63 @@ const KasManagement: React.FC = () => {
                       </FormItem>
                     )}
                   />
-                   <FormField
-              control={incomeForm.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <FormControl>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-between font-normal"
-                        >
-                          {field.value
-                            ? format(new Date(field.value), 'MMM dd, yyyy')
-                            : 'Select date'}
-                          <ChevronDownIcon className="h-4 w-4" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value ? new Date(field.value) : undefined}
-                          defaultMonth={field.value ? new Date(field.value) : new Date()}
-                          captionLayout="dropdown"
-                          onSelect={(date) => {
-                            if (date) {
-                              field.onChange(format(date, 'yyyy-MM-dd'));
-                            }
-                          }}
-                          disabled={(date) =>
-                            date.getFullYear() < 2020 || date.getFullYear() > 2100
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                  <FormField
+                    control={incomeForm.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date</FormLabel>
+                        <FormControl>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="w-full justify-between font-normal"
+                              >
+                                {field.value
+                                  ? format(
+                                      new Date(field.value),
+                                      "MMM dd, yyyy"
+                                    )
+                                  : "Select date"}
+                                <ChevronDownIcon className="h-4 w-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-auto p-0"
+                              align="start"
+                            >
+                              <Calendar
+                                mode="single"
+                                selected={
+                                  field.value
+                                    ? new Date(field.value)
+                                    : undefined
+                                }
+                                defaultMonth={
+                                  field.value
+                                    ? new Date(field.value)
+                                    : new Date()
+                                }
+                                captionLayout="dropdown"
+                                onSelect={(date) => {
+                                  if (date) {
+                                    field.onChange(format(date, "yyyy-MM-dd"));
+                                  }
+                                }}
+                                disabled={(date) =>
+                                  date.getFullYear() < 2020 ||
+                                  date.getFullYear() > 2100
+                                }
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <div>
                     <h3 className="text-lg font-semibold mb-2">Payments</h3>
                     {incomeForm.formState.errors.payments && (
@@ -538,7 +622,13 @@ const KasManagement: React.FC = () => {
                                                 >
                                                   {monthField.value &&
                                                   yearField.value
-                                                    ? `${format(monthField.value,'MMM')}, ${format(yearField.value,'yyyy')}`
+                                                    ? `${format(
+                                                        monthField.value,
+                                                        "MMM"
+                                                      )}, ${format(
+                                                        yearField.value,
+                                                        "yyyy"
+                                                      )}`
                                                     : "Select month & year"}
                                                 </Button>
                                               </PopoverTrigger>
@@ -546,7 +636,6 @@ const KasManagement: React.FC = () => {
                                                 <Calendar
                                                   mode="single"
                                                   onSelect={(date) => {
-                                                   
                                                     if (date) {
                                                       monthField.onChange(
                                                         (
@@ -618,7 +707,11 @@ const KasManagement: React.FC = () => {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={isAddingIncome}
+                      disabled={
+                        isAddingIncome ||
+                        hasPaymentErrors ||
+                        Object.keys(incomeForm.formState.errors).length > 0
+                      }
                       className="bg-green-600 hover:bg-green-700"
                     >
                       {isAddingIncome ? "Adding..." : "Add Income"}

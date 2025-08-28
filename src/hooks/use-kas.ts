@@ -9,6 +9,7 @@ import {
   MembersResponse,
   KasRecordsResponse,
 } from "@/lib/api/kas";
+import { memberApi } from "@/lib/api/members";
 
 // Query keys for better cache management
 export const kasQueryKeys = {
@@ -16,7 +17,7 @@ export const kasQueryKeys = {
   summary: ["kas", "summary"] as const,
   members: ["kas", "members"] as const,
 };
-
+ 
 export const useKasRecords = (params?: {
   type?: "income" | "expense";
   month?: number;
@@ -27,11 +28,6 @@ export const useKasRecords = (params?: {
     useAuth();
   const canAccessKas = isBendahara || isKoordinator || isStaff;
 
-  // Debug logging
-  // console.log("useKasRecords - User:", user);
-  // console.log("useKasRecords - isAuthenticated:", isAuthenticated);
-  // console.log("useKasRecords - isBendahara:", isBendahara);
-  // console.log("useKasRecords - canAccessKas:", canAccessKas);
 
   return useQuery({
     queryKey: [...kasQueryKeys.records, params],
@@ -57,10 +53,10 @@ export const useKasSummary = () => {
   const canAccessKas = isBendahara || isKoordinator || isStaff;
 
   // Debug logging
-  // console.log("useKasSummary - User:", user);
-  // console.log("useKasSummary - isAuthenticated:", isAuthenticated);
-  // console.log("useKasSummary - isBendahara:", isBendahara);
-  // console.log("useKasSummary - canAccessKas:", canAccessKas);
+  // 
+  // 
+  // 
+  // 
 
   return useQuery({
     queryKey: kasQueryKeys.summary,
@@ -82,23 +78,24 @@ export const useKasSummary = () => {
 export const useMembers = () => {
   const { isBendahara, isKoordinator, isStaff, user, isAuthenticated } =
     useAuth();
+  
+
   const canAccessMembers = isBendahara || isKoordinator || isStaff;
 
-  // Debug logging
-  // console.log("useMembers - User:", user);
-  // console.log("useMembers - isAuthenticated:", isAuthenticated);
-  // console.log("useMembers - isBendahara:", isBendahara);
-  // console.log("useMembers - canAccessMembers:", canAccessMembers);
+ 
 
   return useQuery({
     queryKey: kasQueryKeys.members,
     queryFn: async () => {
-      const response = await kasApi.getMembers();
+      if (!user) {
+        throw new Error("User is not available");
+      }
+      const response = await memberApi.getMembers(user.eschool_id);
       return response;
     },
     enabled: isAuthenticated && canAccessMembers,
     staleTime: 10 * 60 * 1000, // 10 minutes (members don't change often)
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: unknown) => {
       if (error?.response?.status === 401 || error?.response?.status === 403) {
         return false;
       }
@@ -119,7 +116,7 @@ export const useAddIncome = () => {
       // Invalidate and refetch kas-related queries
       queryClient.invalidateQueries({ queryKey: kasQueryKeys.records });
       queryClient.invalidateQueries({ queryKey: kasQueryKeys.summary });
-      // console.log("Income added successfully:", data);
+      // 
     },
     onError: (error: any) => {
       console.error(
@@ -142,7 +139,7 @@ export const useAddExpense = () => {
       // Invalidate and refetch kas-related queries
       queryClient.invalidateQueries({ queryKey: kasQueryKeys.records });
       queryClient.invalidateQueries({ queryKey: kasQueryKeys.summary });
-      console.log("Expense added successfully:", data);
+      
     },
     onError: (error: any) => {
       console.error(
@@ -178,7 +175,7 @@ export const useExportKasRecords = () => {
       return blob;
     },
     onSuccess: () => {
-      console.log("Kas records exported successfully");
+      
     },
     onError: (error: unknown) => {
       console.error(

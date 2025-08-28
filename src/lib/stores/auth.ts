@@ -1,4 +1,4 @@
-import { User } from "@/types/api";
+import { LoginResponse, User } from "@/types/api";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -6,7 +6,7 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   token: string | null;
-  login: (user: User) => void;
+  login: (response: User) => void;
   logout: () => void;
   updateUser: (user: Partial<User>) => void;
   setUser: (user: User | null) => void;
@@ -20,8 +20,8 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       token: null,
 
-      login: (user: User) => {
-        set({ user, isAuthenticated: true });
+      login: (response) => {
+        set({ user:response, isAuthenticated: true });
       },
 
       logout: () => {
@@ -56,7 +56,6 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,
-        token: state.token,
       }),
     }
   )
