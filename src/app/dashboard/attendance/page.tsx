@@ -96,6 +96,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useMembers } from "@/hooks/use-kas";
+import { toast } from "sonner";
 
 const attendanceSchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -110,7 +111,15 @@ const attendanceSchema = z.object({
     .min(1, "At least one member attendance is required"),
 });
 
+const updateAttendanceSchema = z.object({
+  member_id: z.string().min(1, "Please select a member"),
+  is_present: z.boolean(),
+  notes: z.string().nullable(),
+  date: z.string().min(1, "Date is required"),
+});
+
 type AttendanceFormData = z.infer<typeof attendanceSchema>;
+type UpdateAttendanceFormData = z.infer<typeof updateAttendanceSchema>;
 
 const AttendancePage = () => {
   const { user, token } = useAuthStore();
@@ -126,7 +135,6 @@ const AttendancePage = () => {
     error: attendanceError,
     refetch,
   } = useAttendance({});
-    console.log(`🚀 ~ page.tsx:129 ~ attendanceRecords:`, attendanceRecords)
 
   const { data: membersData, isLoading: membersLoading } = useMembers();
   const { data: statsData, isLoading: statsLoading } =
@@ -135,6 +143,10 @@ const AttendancePage = () => {
   const members = membersData?.members || [];
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<any>(null);
 
   const attendanceForm = useForm<AttendanceFormData>({
     resolver: zodResolver(attendanceSchema),
@@ -143,7 +155,16 @@ const AttendancePage = () => {
       members: [{ member_id: "", is_present: true, notes: null }],
     },
   });
- 
+
+  const updateAttendanceForm = useForm<UpdateAttendanceFormData>({
+    resolver: zodResolver(updateAttendanceSchema),
+    defaultValues: {
+      member_id: "",
+      is_present: true,
+      notes: null,
+      date: new Date().toISOString().split("T")[0],
+    },
+  });
 
   const { fields, append, remove } = useFieldArray({
     control: attendanceForm.control,
@@ -165,16 +186,143 @@ const AttendancePage = () => {
       attendanceForm.reset();
       setIsCreateDialogOpen(false);
       refetch();
+      toast("Attendance recorded successfully",{
+        description: "Attendance recorded successfully",
+      });
     } catch (error: unknown) {
       const err = error as any;
-      const errors = err.response?.data?.messages;
-
+      const errors = err.response?.data?.messages || [
+        err.response?.data?.message || "Gagal mencatat absensi",
+      ];
       attendanceForm.setError("root", {
         type: "server",
-        message: errors || [
-          err.response?.data?.message || "Gagal mencatat absensi",
-        ],
+        message: errors,
       });
+    }
+  };
+
+  const handleViewRecord = async (id: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const response = await fetch(`${apiUrl}/attendance/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch attendance record");
+      }
+      const data = await response.json();
+      setSelectedRecord(data.data);
+      setIsViewDialogOpen(true);
+    } catch (error) {
+      console.error("Error fetching record:", error);
+      toast("Failed to fetch attendance record",{
+        // description: "Failed to fetch attendance record",
+        // variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditRecord = async (id: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const response = await fetch(`${apiUrl}/attendance/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch attendance record");
+      }
+      const data = await response.json();
+      setSelectedRecord(data.data);
+      updateAttendanceForm.setValue("member_id", data.data.member_id);
+      updateAttendanceForm.setValue("is_present", data.data.is_present);
+      updateAttendanceForm.setValue("notes", data.data.notes || "");
+      updateAttendanceForm.setValue("date", data.data.date.split(" ")[0]);
+      setIsEditDialogOpen(true);
+    } catch (error) {
+      console.error("Error fetching record for edit:", error);
+      toast("Failed to fetch attendance record for editing",{
+        // title: "Error",
+        // description: "Failed to fetch attendance record for editing",
+        // variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateAttendance = async (data: UpdateAttendanceFormData) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const response = await fetch(
+        `${apiUrl}/attendance/${selectedRecord.id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...data,
+            eschool_id: eschoolId,
+          }),
+        }
+      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update attendance");
+      }
+      setIsEditDialogOpen(false);
+      refetch();
+      toast("Attendance record updated successfully",{
+        // title: "Success",
+        // description: "Attendance record updated successfully",
+      });
+    } catch (error: unknown) {
+      console.error("Error updating record:", error);
+      toast("Failed to update attendance",{
+        // title: "Error",
+        // description:
+        //   error instanceof Error
+        //     ? error.message
+        //     : "Failed to update attendance",
+        // variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteRecord = async (id: string) => {
+    setSelectedRecord({ id });
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteRecord = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+      const response = await fetch(
+        `${apiUrl}/attendance/${selectedRecord.id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete attendance");
+      }
+      setIsDeleteDialogOpen(false);
+      refetch();
+      // toast({
+      //   title: "Success",
+      //   description: "Attendance record deleted successfully",
+      // });
+    } catch (error: unknown) {
+      console.error("Error deleting record:", error);
+      // toast({
+      //   title: "Error",
+      //   description:
+      //     error instanceof Error
+      //       ? error.message
+      //       : "Failed to delete attendance",
+      //   variant: "destructive",
+      // });
     }
   };
 
@@ -208,11 +356,11 @@ const AttendancePage = () => {
       document.body.removeChild(a);
     } catch (error) {
       console.error("Error exporting Excel:", error);
-      alert(
-        `Export failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      // toast({
+      //   title: "Error",
+      //   description: error instanceof Error ? error.message : "Unknown error",
+      //   variant: "destructive",
+      // });
     }
   };
 
@@ -246,19 +394,13 @@ const AttendancePage = () => {
       document.body.removeChild(a);
     } catch (error) {
       console.error("Error exporting PDF:", error);
-      alert(
-        `Export failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
+      // toast({
+      //   title: "Error",
+      //   description: error instanceof Error ? error.message : "Unknown error",
+      //   variant: "destructive",
+      // });
     }
   };
-
-  const handleViewRecord = (id: string) => {};
-
-  const handleEditRecord = (id: string) => {};
-
-  const handleDeleteRecord = (id: string) => {};
 
   const filteredAttendance = useMemo(() => {
     return memberIdFromQuery &&
@@ -437,9 +579,14 @@ const AttendancePage = () => {
                           </h3>
                           {attendanceForm.formState.errors.root?.message && (
                             <ul className="text-red-500 text-sm mt-2">
-                              {(Array.isArray(attendanceForm.formState.errors.root?.message)
+                              {(Array.isArray(
+                                attendanceForm.formState.errors.root?.message
+                              )
                                 ? attendanceForm.formState.errors.root.message
-                                : [attendanceForm.formState.errors.root?.message]
+                                : [
+                                    attendanceForm.formState.errors.root
+                                      ?.message,
+                                  ]
                               ).map((msg, idx) => (
                                 <li key={idx}>❌ {msg}</li>
                               ))}
@@ -494,7 +641,7 @@ const AttendancePage = () => {
                                                       String(member.id)
                                                     ) &&
                                                     String(member.id) !==
-                                                      field.value; // sudah dipakai field lain
+                                                      field.value;
 
                                                   return (
                                                     <SelectItem
@@ -611,8 +758,6 @@ const AttendancePage = () => {
                           </Button>
                           <Button
                             type="submit"
-                            // onClick={() => alert("Submitting form...")}
-
                             disabled={
                               createAttendanceMutation.isPending ||
                               watchedMembers.some((member) => !member.member_id)
@@ -925,22 +1070,26 @@ const AttendancePage = () => {
                             >
                               <Eye className="h-4 w-4 text-indigo-600" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditRecord(record.id)}
-                              aria-label="Edit record"
-                            >
-                              <Edit className="h-4 w-4 text-blue-600" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteRecord(record.id)}
-                              aria-label="Delete record"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </Button>
+                            {["koordinator", "staff"].includes(user.role) && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditRecord(record.id)}
+                                  aria-label="Edit record"
+                                >
+                                  <Edit className="h-4 w-4 text-blue-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteRecord(record.id)}
+                                  aria-label="Delete record"
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -959,7 +1108,7 @@ const AttendancePage = () => {
                     </span>{" "}
                     records
                   </div>
-                  <div className="flex space-x-2">  
+                  <div className="flex space-x-2">
                     <Button variant="outline" size="sm" disabled>
                       <ArrowLeft className="h-4 w-4" />
                     </Button>
@@ -1029,6 +1178,239 @@ const AttendancePage = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* View Dialog */}
+        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Detail Absensi</DialogTitle>
+              <DialogDescription>
+                Informasi lengkap tentang catatan absensi
+              </DialogDescription>
+            </DialogHeader>
+            {selectedRecord && (
+              <div className="space-y-4">
+                <div>
+                  <Label>Tanggal</Label>
+                  <p className="text-gray-600">
+                    {format(new Date(selectedRecord.date), "MMM d, yyyy")}
+                  </p>
+                </div>
+                <div>
+                  <Label>Anggota</Label>
+                  <p className="text-gray-600">
+                    {selectedRecord.member?.user?.name || "Unknown"}
+                  </p>
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <p
+                    className={`text-sm font-semibold ${
+                      selectedRecord.is_present
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {selectedRecord.is_present ? "Hadir" : "Tidak Hadir"}
+                  </p>
+                </div>
+                <div>
+                  <Label>Catatan</Label>
+                  <p className="text-gray-600">{selectedRecord.notes || "-"}</p>
+                </div>
+                <div>
+                  <Label>Pencatat</Label>
+                  <p className="text-gray-600">
+                    {selectedRecord.recorder?.name || "Unknown"}
+                  </p>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsViewDialogOpen(false)}
+              >
+                Tutup
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Absensi</DialogTitle>
+              <DialogDescription>Perbarui catatan absensi</DialogDescription>
+            </DialogHeader>
+            <FormProvider {...updateAttendanceForm}>
+              <form
+                onSubmit={updateAttendanceForm.handleSubmit(
+                  handleUpdateAttendance
+                )}
+                className="space-y-4"
+              >
+                <div>
+                  <Label htmlFor="date">Tanggal</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between font-normal"
+                      >
+                        {updateAttendanceForm.watch("date")
+                          ? format(
+                              new Date(updateAttendanceForm.watch("date")),
+                              "MMM d, yyyy"
+                            )
+                          : "Select date"}
+                        <ChevronDownIcon className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={
+                          updateAttendanceForm.watch("date")
+                            ? new Date(updateAttendanceForm.watch("date"))
+                            : undefined
+                        }
+                        defaultMonth={
+                          updateAttendanceForm.watch("date")
+                            ? new Date(updateAttendanceForm.watch("date"))
+                            : new Date()
+                        }
+                        captionLayout="dropdown"
+                        onSelect={(date) => {
+                          if (date) {
+                            updateAttendanceForm.setValue(
+                              "date",
+                              format(date, "yyyy-MM-dd")
+                            );
+                          }
+                        }}
+                        disabled={(date) =>
+                          date.getFullYear() < 2020 || date.getFullYear() > 2100
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {updateAttendanceForm.formState.errors.date && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {updateAttendanceForm.formState.errors.date.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label>Anggota</Label>
+                  <Select
+                    onValueChange={(value) =>
+                      updateAttendanceForm.setValue("member_id", value)
+                    }
+                    value={updateAttendanceForm.watch("member_id")}
+                    disabled
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a member" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {members.map((member) => (
+                        <SelectItem key={member.id} value={String(member.id)}>
+                          {member.name}
+                          {member.student_id ? ` - ${member.student_id}` : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {updateAttendanceForm.formState.errors.member_id && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {updateAttendanceForm.formState.errors.member_id.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label>Status</Label>
+                  <Select
+                    onValueChange={(value) =>
+                      updateAttendanceForm.setValue(
+                        "is_present",
+                        value === "true"
+                      )
+                    }
+                    value={updateAttendanceForm.watch("is_present").toString()}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">Hadir</SelectItem>
+                      <SelectItem value="false">Tidak Hadir</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {updateAttendanceForm.formState.errors.is_present && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {updateAttendanceForm.formState.errors.is_present.message}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label>Catatan</Label>
+                  <Input
+                    placeholder="Optional notes"
+                    value={updateAttendanceForm.watch("notes") || ""}
+                    onChange={(e) =>
+                      updateAttendanceForm.setValue(
+                        "notes",
+                        e.target.value || null
+                      )
+                    }
+                  />
+                  {updateAttendanceForm.formState.errors.notes && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {updateAttendanceForm.formState.errors.notes.message}
+                    </p>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditDialogOpen(false)}
+                  >
+                    Batal
+                  </Button>
+                  <Button type="submit">Simpan</Button>
+                </DialogFooter>
+              </form>
+            </FormProvider>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Konfirmasi Penghapusan</DialogTitle>
+              <DialogDescription>
+                Apakah Anda yakin ingin menghapus catatan absensi ini? Tindakan
+                ini tidak dapat dibatalkan.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsDeleteDialogOpen(false)}
+              >
+                Batal
+              </Button>
+              <Button variant="destructive" onClick={confirmDeleteRecord}>
+                Hapus
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
