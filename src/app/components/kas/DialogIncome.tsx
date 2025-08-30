@@ -35,7 +35,8 @@ interface IncomeDialogProps {
 }
 
 const IncomeDialog = ({ showIncomeDialog, setShowIncomeDialog }: IncomeDialogProps) => {
-  const { role } = useAuthStore();
+  const { user } = useAuthStore();
+  const role = user?.role;
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(true);
   const [isAddingIncome, setIsAddingIncome] = useState(false);
@@ -54,7 +55,7 @@ const IncomeDialog = ({ showIncomeDialog, setShowIncomeDialog }: IncomeDialogPro
   });
 
   useEffect(() => {
-    if (role !== 'treasurer') {
+    if (role !== 'bendahara') {
       setShowIncomeDialog(false);
       return;
     }

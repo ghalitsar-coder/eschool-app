@@ -9,7 +9,9 @@ type ProvidersProps = {
 export const Providers = ({ children }: ProvidersProps) => {
   return (
     <QueryProvider>
-      <AuthProvider>{children}</AuthProvider>
+      {/* <AuthProvider> */}
+        {children}
+        {/* </AuthProvider> */}
       <Toaster />
     </QueryProvider>
   );

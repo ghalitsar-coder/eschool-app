@@ -1,81 +1,149 @@
-// kasApi.ts - Kas Management API based on Laravel backend
-import { ApiResponse,   AttendanceFormData,   AttendanceRecord, AttendanceStats, CreateAttendanceParams } from "@/types/api";
+// attendanceApi.ts - Attendance Management API based on Laravel backend
+import { 
+  ApiResponse, 
+  AttendanceFormData, 
+  AttendanceRecord, 
+  AttendanceStats 
+} from "@/types/api";
 import apiClient from "./client";
 
- 
-
 export const attendanceApi = {
-  // Get members for current treasurer's eschool
-  
-
-  // Add income record with payments
+  // Record attendance
   recordAttendance: async (
     data: AttendanceFormData
   ): Promise<ApiResponse<AttendanceRecord>> => {
     try {
-      const response = await apiClient.post("/attendance/record", data);
+      // Log the data being sent for debugging
+      console.log("Sending attendance data:", data);
+      
+      const formattedData = {
+        ...data,
+        members: data.members.map(member => ({
+          ...member,
+          is_present: Boolean(member.is_present), // Ensure boolean type
+          member_id: Number(member.member_id) // Ensure number type
+        }))
+      };
+      
+      // Log the formatted data
+      console.log("Formatted attendance data:", formattedData);
+      
+      const response = await apiClient.post("/attendance/record", formattedData);
       return response.data;
-    } catch (error) {
-      console.error("Error adding income:", error);
+    } catch (error: any) {
+      console.error("Error recording attendance:", error);
+      
+      // Log more detailed error information
+      if (error.response) {
+        console.error("Response data:", error.response.data);
+        console.error("Response status:", error.response.status);
+        console.error("Response headers:", error.response.headers);
+      } else if (error.request) {
+        console.error("Request data:", error.request);
+      } else {
+        console.error("Error message:", error.message);
+      }
+      
       throw error;
     }
   },
- 
 
-  // Get kas records history with pagination and filters
+  // Get attendance records
   getAttendanceRecords: async (params?: {
     eschoolId?: number;
-    date?: Date;
-    start_date?: Date;
-    page?: Date;
+    date?: string;
+      start_date?: string;
+      end_date?: string;
   }): Promise<AttendanceRecord[]> => {
     try {
-      const response = await apiClient.get("/attendance/records", {params:{ eschool_id:params?.eschoolId }});
-      console.log(`🚀 ~ attendance.ts:34 ~ response:`, response)
-
+      // Convert camelCase keys to snake_case to match backend expectations
+      const convertedParams = params ? {
+        eschool_id: params.eschoolId,
+        date: params.date,
+        start_date: params.start_date,
+        end_date: params.end_date,
+      } : {};
       
+      const response = await apiClient.get("/attendance/records", { 
+        params: convertedParams 
+      });
       return Array.isArray(response.data.data) ? response.data.data : [];
     } catch (error) {
-      console.error("Error fetching kas records:", error);
+      console.error("Error fetching attendance records:", error);
       throw error;
     }
   },
 
-  // Get kas summary for dashboard
-  getAttendanceStatistics: async (eschoolId?:number): Promise<AttendanceStats> => {
-    
-
+  // Get attendance statistics
+  getAttendanceStatistics: async (eschoolId: number): Promise<AttendanceStats> => {
     try {
       const response = await apiClient.get("/attendance/statistics", {
-        params:{
-          eschool_id:Number(eschoolId)
-        }
+        params: { eschool_id: eschoolId }
       });
-      
-      // Convert string numbers to actual numbers for consistency
-      const data = response.data;
-      return data;
+      return response.data;
     } catch (error) {
-      console.error("Error fetching kas summary:", error);
+      console.error("Error fetching attendance statistics:", error);
       throw error;
     }
   },
 
-  // Export kas records (if implemented in backend)
+  // Get members for attendance
+  getAttendanceMembers: async (eschoolId: number): Promise<any[]> => {
+    try {
+      // This would need to be implemented in the backend
+      // For now, we'll use the members endpoint
+      const response = await apiClient.get(`/members`, {
+        params: { eschool_id: eschoolId }
+      });
+      console.log(`🚀 ~ attendance.ts:71 ~ response:`, response)
+
+      return response.data.data || [];
+    } catch (error) {
+      console.error("Error fetching attendance members:", error);
+      throw error;
+    }
+  },
+
+  // Update attendance record
+  updateAttendance: async (
+    id: number,
+    data: any
+  ): Promise<ApiResponse<AttendanceRecord>> => {
+    try {
+      const response = await apiClient.put(`/attendance/records/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating attendance:", error);
+      throw error;
+    }
+  },
+
+  // Delete attendance record
+  deleteAttendance: async (id: number): Promise<ApiResponse<void>> => {
+    try {
+      const response = await apiClient.delete(`/attendance/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error("Error deleting attendance:", error);
+      throw error;
+    }
+  },
+
+  // Export attendance records
   exportRecords: async (params: {
-    type?: "income" | "expense";
-    month?: number;
-    year?: number;
+    eschool_id: number;
+    start_date?: string;
+    end_date?: string;
     format?: "csv" | "excel";
   }): Promise<Blob> => {
     try {
-      const response = await apiClient.get("/kas/export", {
+      const response = await apiClient.get("/attendance/export", {
         params,
         responseType: "blob",
       });
       return response.data;
     } catch (error) {
-      console.error("Error exporting kas records:", error);
+      console.error("Error exporting attendance records:", error);
       throw error;
     }
   },

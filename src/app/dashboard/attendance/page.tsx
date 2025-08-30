@@ -1,19 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  useForm,
-  useFieldArray,
-  FormProvider,
-  useWatch,
-} from "react-hook-form";
+import { useState, useMemo } from "react";
+import { useAttendanceManagement } from "@/hooks/use-attendance";
 import { useAuthStore } from "@/lib/stores/auth";
-import {
-  useAttendance,
-  useCreateAttendance,
-  useAttendanceStatistics,
-} from "@/hooks/use-attendance";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,12 +36,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import {
   Table,
   TableBody,
   TableCell,
@@ -60,6 +43,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Badge,
+  badgeVariants,
+} from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import {
   ArrowLeft,
   Plus,
@@ -76,6 +69,7 @@ import {
   Filter,
   MoreVertical,
   ChevronDownIcon,
+  Search,
 } from "lucide-react";
 import { format, startOfWeek } from "date-fns";
 import * as z from "zod";
@@ -88,15 +82,21 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
 import {
+  Form,
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { useMembers } from "@/hooks/use-kas";
+import { useForm, useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const attendanceSchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -122,31 +122,39 @@ type AttendanceFormData = z.infer<typeof attendanceSchema>;
 type UpdateAttendanceFormData = z.infer<typeof updateAttendanceSchema>;
 
 const AttendancePage = () => {
-  const { user, token } = useAuthStore();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const memberIdFromQuery = searchParams.get("member");
-
-  const eschoolId = user?.eschool_id;
-
-  const {
-    data: attendanceRecords,
-    isLoading: attendanceLoading,
-    error: attendanceError,
-    refetch,
-  } = useAttendance({});
-
-  const { data: membersData, isLoading: membersLoading } = useMembers();
-  const { data: statsData, isLoading: statsLoading } =
-    useAttendanceStatistics();
-  const createAttendanceMutation = useCreateAttendance();
-  const members = membersData?.members || [];
-
+  const { user } = useAuthStore();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [dateFilter, setDateFilter] = useState<string | undefined>(undefined);
+
+  const {
+    records,
+    statistics,
+    members,
+    isLoadingRecords,
+    isLoadingStatistics,
+    isLoadingMembers,
+    isCreating,
+    isUpdating,
+    isDeleting,
+    recordsError,
+    statisticsError,
+    membersError,
+    createError,
+    updateError,
+    deleteError,
+    createAttendance,
+    updateAttendance,
+    deleteAttendance,
+    refetchRecords,
+    refetchStatistics,
+  } = useAttendanceManagement();
+    console.log(`🚀 ~ page.tsx:156 ~ members:`, members)
+
 
   const attendanceForm = useForm<AttendanceFormData>({
     resolver: zodResolver(attendanceSchema),
@@ -171,438 +179,356 @@ const AttendancePage = () => {
     name: "members",
   });
 
-  const dateWatched = useWatch({
-    control: attendanceForm.control,
-    name: "date",
-  });
-  const watchedMembers = useWatch({
-    control: attendanceForm.control,
-    name: "members",
-  });
+  const watchedMembers = attendanceForm.watch("members");
 
   const handleCreateAttendance = async (data: AttendanceFormData) => {
     try {
-      await createAttendanceMutation.mutateAsync(data);
+      // Ensure data is properly formatted before sending
+      const formattedData = {
+        ...data,
+        members: data.members.map(member => ({
+          ...member,
+          member_id: Number(member.member_id),
+          is_present: Boolean(member.is_present)
+        }))
+      };
+      
+      await createAttendance(formattedData);
       attendanceForm.reset();
       setIsCreateDialogOpen(false);
-      refetch();
-      toast("Attendance recorded successfully",{
-        description: "Attendance recorded successfully",
-      });
-    } catch (error: unknown) {
-      const err = error as any;
-      const errors = err.response?.data?.messages || [
-        err.response?.data?.message || "Gagal mencatat absensi",
-      ];
-      attendanceForm.setError("root", {
-        type: "server",
-        message: errors,
-      });
-    }
-  };
-
-  const handleViewRecord = async (id: string) => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const response = await fetch(`${apiUrl}/attendance/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch attendance record");
+      refetchRecords();
+      refetchStatistics();
+      toast.success("Attendance recorded successfully");
+    } catch (error: any) {
+      console.error("Error creating attendance:", error);
+      
+      // Handle validation errors from backend
+      const errorMessage = error?.response?.data?.message || error?.message || "An unexpected error occurred";
+      const errorMessages = error?.response?.data?.messages || [];
+      
+      if (Array.isArray(errorMessages) && errorMessages.length > 0) {
+        // Display all validation messages
+        toast.error("Failed to record attendance", {
+          description: (
+            <div className="space-y-1">
+              {errorMessages.map((msg: string, index: number) => (
+                <div key={index}>❌ {msg}</div>
+              ))}
+            </div>
+          ),
+        });
+      } else {
+        toast.error("Failed to record attendance", {
+          description: errorMessage,
+        });
       }
-      const data = await response.json();
-      setSelectedRecord(data.data);
-      setIsViewDialogOpen(true);
-    } catch (error) {
-      console.error("Error fetching record:", error);
-      toast("Failed to fetch attendance record",{
-        // description: "Failed to fetch attendance record",
-        // variant: "destructive",
-      });
-    }
-  };
-
-  const handleEditRecord = async (id: string) => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const response = await fetch(`${apiUrl}/attendance/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to fetch attendance record");
-      }
-      const data = await response.json();
-      setSelectedRecord(data.data);
-      updateAttendanceForm.setValue("member_id", data.data.member_id);
-      updateAttendanceForm.setValue("is_present", data.data.is_present);
-      updateAttendanceForm.setValue("notes", data.data.notes || "");
-      updateAttendanceForm.setValue("date", data.data.date.split(" ")[0]);
-      setIsEditDialogOpen(true);
-    } catch (error) {
-      console.error("Error fetching record for edit:", error);
-      toast("Failed to fetch attendance record for editing",{
-        // title: "Error",
-        // description: "Failed to fetch attendance record for editing",
-        // variant: "destructive",
-      });
     }
   };
 
   const handleUpdateAttendance = async (data: UpdateAttendanceFormData) => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const response = await fetch(
-        `${apiUrl}/attendance/${selectedRecord.id}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            ...data,
-            eschool_id: eschoolId,
-          }),
-        }
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to update attendance");
-      }
+      if (!selectedRecord) return;
+      await updateAttendance({ id: selectedRecord.id, data });
       setIsEditDialogOpen(false);
-      refetch();
-      toast("Attendance record updated successfully",{
-        // title: "Success",
-        // description: "Attendance record updated successfully",
-      });
-    } catch (error: unknown) {
-      console.error("Error updating record:", error);
-      toast("Failed to update attendance",{
-        // title: "Error",
-        // description:
-        //   error instanceof Error
-        //     ? error.message
-        //     : "Failed to update attendance",
-        // variant: "destructive",
+      refetchRecords();
+      refetchStatistics();
+      toast.success("Attendance updated successfully");
+    } catch (error: any) {
+      console.error("Error updating attendance:", error);
+      toast.error("Failed to update attendance", {
+        description: error?.message || "An unexpected error occurred",
       });
     }
   };
 
-  const handleDeleteRecord = async (id: string) => {
-    setSelectedRecord({ id });
+  const handleDeleteAttendance = async () => {
+    try {
+      if (!selectedRecord) return;
+      await deleteAttendance(selectedRecord.id);
+      setIsDeleteDialogOpen(false);
+      refetchRecords();
+      refetchStatistics();
+      toast.success("Attendance deleted successfully");
+    } catch (error: any) {
+      console.error("Error deleting attendance:", error);
+      toast.error("Failed to delete attendance", {
+        description: error?.message || "An unexpected error occurred",
+      });
+    }
+  };
+
+  const handleViewRecord = (record: any) => {
+    setSelectedRecord(record);
+    setIsViewDialogOpen(true);
+  };
+
+  const handleEditRecord = (record: any) => {
+    setSelectedRecord(record);
+    updateAttendanceForm.setValue("member_id", record.member.id.toString());
+    updateAttendanceForm.setValue("is_present", record.is_present);
+    updateAttendanceForm.setValue("notes", record.notes || "");
+    updateAttendanceForm.setValue("date", record.date.split("T")[0] || record.date);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDeleteRecord = (record: any) => {
+    setSelectedRecord(record);
     setIsDeleteDialogOpen(true);
   };
 
-  const confirmDeleteRecord = async () => {
+  const handleExport = async (format: 'csv' | 'pdf') => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const response = await fetch(
-        `${apiUrl}/attendance/${selectedRecord.id}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete attendance");
-      }
-      setIsDeleteDialogOpen(false);
-      refetch();
-      // toast({
-      //   title: "Success",
-      //   description: "Attendance record deleted successfully",
-      // });
-    } catch (error: unknown) {
-      console.error("Error deleting record:", error);
-      // toast({
-      //   title: "Error",
-      //   description:
-      //     error instanceof Error
-      //       ? error.message
-      //       : "Failed to delete attendance",
-      //   variant: "destructive",
-      // });
-    }
-  };
-
-  const handleExportExcel = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const response = await fetch(
-        `${apiUrl}/eschools/${eschoolId}/attendance/export/excel`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Failed to export Excel: ${response.status} - ${errorText}`
-        );
+      if (!user?.eschool_id) {
+        toast.error("Unable to export: No eschool ID found");
+        return;
       }
 
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const params = new URLSearchParams({
+        eschool_id: user.eschool_id.toString()
+      });
+
+      // Add date filter if available
+      if (dateFilter) {
+        params.append('start_date', dateFilter);
+        params.append('end_date', dateFilter);
+      }
+
+      const url = `${baseUrl}/attendance/export/${format}?${params.toString()}`;
+      
+      // For authenticated download, we need to use fetch and create a blob
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include', // Include cookies for authentication
+        headers: {
+          'Accept': 'text/csv,application/pdf',
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to export ${format.toUpperCase()}`);
+      }
+
+      // Get the filename from the Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `attendance_export_${new Date().toISOString().split('T')[0]}.${format}`;
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      // Create blob and download
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `attendance_records_${
-        new Date().toISOString().split("T")[0]
-      }.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Error exporting Excel:", error);
-      // toast({
-      //   title: "Error",
-      //   description: error instanceof Error ? error.message : "Unknown error",
-      //   variant: "destructive",
-      // });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      toast.success(`${format.toUpperCase()} export completed successfully`);
+    } catch (error: any) {
+      console.error(`Error exporting ${format}:`, error);
+      toast.error(`Failed to export ${format.toUpperCase()}`, {
+        description: error?.message || "An unexpected error occurred"
+      });
     }
   };
 
-  const handleExportPDF = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const response = await fetch(
-        `${apiUrl}/eschools/${eschoolId}/attendance/export/pdf`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Failed to export PDF: ${response.status} - ${errorText}`
-        );
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `attendance_records_${
-        new Date().toISOString().split("T")[0]
-      }.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Error exporting PDF:", error);
-      // toast({
-      //   title: "Error",
-      //   description: error instanceof Error ? error.message : "Unknown error",
-      //   variant: "destructive",
-      // });
-    }
-  };
-
-  const filteredAttendance = useMemo(() => {
-    return memberIdFromQuery &&
-      attendanceRecords &&
-      Array.isArray(attendanceRecords)
-      ? attendanceRecords.filter(
-          (record) => record.member_id === memberIdFromQuery
-        )
-      : attendanceRecords && Array.isArray(attendanceRecords)
-      ? attendanceRecords
-      : [];
-  }, [attendanceRecords, memberIdFromQuery]);
+  const filteredRecords = useMemo(() => {
+    if (!records) return [];
+    
+    return records.filter((record) => {
+      const matchesSearch = 
+        record.member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        "";
+      
+      const matchesDate = dateFilter 
+        ? new Date(record.date).toDateString() === new Date(dateFilter).toDateString()
+        : true;
+        
+      return matchesSearch && matchesDate;
+    });
+  }, [records, searchTerm, dateFilter]);
 
   const chartData = useMemo(() => {
-    if (!attendanceRecords || !Array.isArray(attendanceRecords)) return [];
-    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-    const days = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(weekStart);
-      date.setDate(weekStart.getDate() + i);
-      const records = attendanceRecords.filter(
-        (r) => new Date(r.date).toDateString() === date.toDateString()
-      );
-      const present = records.filter((r) => r.is_present).length;
-      const total = records.length || members.length;
-      return {
-        date: format(date, "MMM d"),
-        percentage: total ? (present / total) * 100 : 0,
-      };
+    if (!records) return [];
+    
+    // Group records by date
+    const groupedRecords: Record<string, { present: number; total: number }> = {};
+    
+    records.forEach((record) => {
+      const dateKey = format(new Date(record.date), "yyyy-MM-dd");
+      if (!groupedRecords[dateKey]) {
+        groupedRecords[dateKey] = { present: 0, total: 0 };
+      }
+      groupedRecords[dateKey].total += 1;
+      if (record.is_present) {
+        groupedRecords[dateKey].present += 1;
+      }
     });
-    return days;
-  }, [attendanceRecords, members]);
+    
+    // Convert to chart data format
+    return Object.entries(groupedRecords)
+      .map(([date, stats]) => ({
+        date: format(new Date(date), "MMM dd"),
+        percentage: stats.total > 0 ? (stats.present / stats.total) * 100 : 0,
+        present: stats.present,
+        total: stats.total,
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(-7); // Last 7 days
+  }, [records]);
+
+  const hasErrors = recordsError || statisticsError || membersError || createError || updateError || deleteError;
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
-          <p className="mt-2 text-gray-600">Loading...</p>
+      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+        <div className="px-4 lg:px-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Attendance Management</h1>
+              <p className="text-muted-foreground">Track and manage member attendance</p>
+            </div>
+          </div>
+        </div>
+        <div className="px-4 lg:px-6">
+          <div className="text-center py-6">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
+            <p className="mt-2 text-gray-600">Loading...</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push("/dashboard")}
-                className="mr-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Dashboard
-              </Button>
-              <h1 className="text-xl font-semibold text-gray-900">
-                Kelola Absensi
-                {memberIdFromQuery && members && (
-                  <span className="text-sm text-gray-600 ml-2">
-                    - {members.find((m) => m.id === memberIdFromQuery)?.name}
-                  </span>
-                )}
-              </h1>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                onClick={() => router.push("/dashboard/attendance/analytics")}
-                className="bg-blue-50 border-blue-200 hover:bg-blue-100"
-              >
-                <BarChart3 className="mr-2 h-4 w-4 text-blue-600" />
-                Analytics
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Download className="mr-2 h-4 w-4" />
-                    Export
+    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      {/* Header */}
+      <div className="px-4 lg:px-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Attendance Management</h1>
+            <p className="text-muted-foreground">Track and manage member attendance</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleExport('csv')}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('pdf')}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {["koordinator", "staff"].includes(user.role) && (
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Record Attendance
                   </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem onClick={handleExportExcel}>
-                    <FileSpreadsheet className="mr-2 h-4 w-4" />
-                    Export Excel
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExportPDF}>
-                    <FileText className="mr-2 h-4 w-4" />
-                    Export PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {["koordinator", "staff"].includes(user.role) && (
-                <Dialog
-                  open={isCreateDialogOpen}
-                  onOpenChange={setIsCreateDialogOpen}
-                >
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Catat Absensi
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-4xl">
-                    <DialogHeader>
-                      <DialogTitle>Catat Absensi</DialogTitle>
-                      <DialogDescription>
-                        Catat kehadiran anggota untuk hari ini
-                      </DialogDescription>
-                    </DialogHeader>
-                    <FormProvider {...attendanceForm}>
-                      <form
-                        onSubmit={attendanceForm.handleSubmit(
-                          handleCreateAttendance
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-4xl">
+                  <DialogHeader>
+                    <DialogTitle>Record Attendance</DialogTitle>
+                    <DialogDescription>
+                      Record attendance for members on a specific date
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...attendanceForm}>
+                    <form
+                      onSubmit={attendanceForm.handleSubmit(handleCreateAttendance)}
+                      className="space-y-4"
+                    >
+                      <FormField
+                        control={attendanceForm.control}
+                        name="date"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Date</FormLabel>
+                            <FormControl>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    className="w-full justify-between font-normal"
+                                  >
+                                    {field.value
+                                      ? format(new Date(field.value), "MMM dd, yyyy")
+                                      : "Select date"}
+                                    <ChevronDownIcon className="h-4 w-4" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value ? new Date(field.value) : undefined}
+                                    defaultMonth={field.value ? new Date(field.value) : new Date()}
+                                    captionLayout="dropdown"
+                                    onSelect={(date) => {
+                                      if (date) {
+                                        field.onChange(format(date, "yyyy-MM-dd"));
+                                      }
+                                    }}
+                                    disabled={(date) =>
+                                      date.getFullYear() < 2020 || date.getFullYear() > 2100
+                                    }
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
                         )}
-                        className="space-y-4"
-                      >
-                        <div>
-                          <Label htmlFor="date">Tanggal</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-between font-normal"
-                              >
-                                {dateWatched
-                                  ? format(new Date(dateWatched), "MMM d, yyyy")
-                                  : "Select date"}
-                                <ChevronDownIcon className="h-4 w-4" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent
-                              className="w-auto p-0"
-                              align="start"
-                            >
-                              <Calendar
-                                mode="single"
-                                selected={
-                                  dateWatched
-                                    ? new Date(dateWatched)
-                                    : undefined
-                                }
-                                defaultMonth={
-                                  dateWatched
-                                    ? new Date(dateWatched)
-                                    : new Date()
-                                }
-                                captionLayout="dropdown"
-                                onSelect={(date) => {
-                                  if (date) {
-                                    attendanceForm.setValue(
-                                      "date",
-                                      format(date, "yyyy-MM-dd")
-                                    );
-                                  }
-                                }}
-                                disabled={(date) =>
-                                  date.getFullYear() < 2020 ||
-                                  date.getFullYear() > 2100
-                                }
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          {attendanceForm.formState.errors.date && (
-                            <p className="text-sm text-red-500 mt-1">
-                              {attendanceForm.formState.errors.date.message}
-                            </p>
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold mb-2">
-                            Member Attendance
-                          </h3>
-                          {attendanceForm.formState.errors.root?.message && (
-                            <ul className="text-red-500 text-sm mt-2">
-                              {(Array.isArray(
-                                attendanceForm.formState.errors.root?.message
-                              )
-                                ? attendanceForm.formState.errors.root.message
-                                : [
-                                    attendanceForm.formState.errors.root
-                                      ?.message,
-                                  ]
-                              ).map((msg, idx) => (
-                                <li key={idx}>❌ {msg}</li>
-                              ))}
-                            </ul>
-                          )}
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>Member</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Notes</TableHead>
-                                <TableHead>Action</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {fields.map((field, index) => (
+                      />
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2">Member Attendance</h3>
+                        {attendanceForm.formState.errors.root?.message && (
+                          <ul className="text-red-500 text-sm mt-2">
+                            {(Array.isArray(attendanceForm.formState.errors.root?.message)
+                              ? attendanceForm.formState.errors.root.message
+                              : [attendanceForm.formState.errors.root?.message]
+                            ).map((msg, idx) => (
+                              <li key={idx}>❌ {msg}</li>
+                            ))}
+                          </ul>
+                        )}
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Member</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Notes</TableHead>
+                              <TableHead>Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {fields.map((field, index) => {
+                              const memberIds = watchedMembers
+                                .map((m) => m.member_id)
+                                .filter((id) => id !== "");
+                              const currentMemberId = watchedMembers[index]?.member_id || "";
+
+                              return (
                                 <TableRow key={field.id}>
                                   <TableCell>
                                     <FormField
@@ -612,36 +538,23 @@ const AttendancePage = () => {
                                         <FormItem>
                                           <FormControl>
                                             <Select
-                                              onValueChange={(value) =>
-                                                field.onChange(value)
-                                              }
-                                              value={
-                                                field.value
-                                                  ? String(field.value)
-                                                  : ""
-                                              }
+                                              onValueChange={(value) => field.onChange(value)}
+                                              value={field.value ? String(field.value) : ""}
                                             >
                                               <SelectTrigger>
                                                 <SelectValue
                                                   placeholder={
-                                                    membersLoading
+                                                    isLoadingMembers
                                                       ? "Loading members..."
                                                       : "Select a member"
                                                   }
                                                 />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                {members.map((member) => {
-                                                  const memberIds =
-                                                    watchedMembers.map(
-                                                      (m) => m.member_id
-                                                    );
+                                                {members?.map((member) => {
                                                   const isUsed =
-                                                    memberIds.includes(
-                                                      String(member.id)
-                                                    ) &&
-                                                    String(member.id) !==
-                                                      field.value;
+                                                    memberIds.includes(String(member.id)) &&
+                                                    String(member.id) !== currentMemberId;
 
                                                   return (
                                                     <SelectItem
@@ -650,6 +563,8 @@ const AttendancePage = () => {
                                                       disabled={isUsed}
                                                     >
                                                       {member.name}
+                                                  {member.student_id ? ` - ${member.student_id}` : ` (ID: ${member.id})`}
+                                                  {member.email && ` - ${member.email}`}
                                                       {member.student_id
                                                         ? ` - ${member.student_id}`
                                                         : ""}
@@ -681,12 +596,8 @@ const AttendancePage = () => {
                                                 <SelectValue placeholder="Select status" />
                                               </SelectTrigger>
                                               <SelectContent>
-                                                <SelectItem value="true">
-                                                  Hadir
-                                                </SelectItem>
-                                                <SelectItem value="false">
-                                                  Tidak Hadir
-                                                </SelectItem>
+                                                <SelectItem value="true">Hadir</SelectItem>
+                                                <SelectItem value="false">Tidak Hadir</SelectItem>
                                               </SelectContent>
                                             </Select>
                                           </FormControl>
@@ -706,9 +617,7 @@ const AttendancePage = () => {
                                               placeholder="Optional notes"
                                               value={field.value || ""}
                                               onChange={(e) =>
-                                                field.onChange(
-                                                  e.target.value || null
-                                                )
+                                                field.onChange(e.target.value || null)
                                               }
                                             />
                                           </FormControl>
@@ -729,424 +638,284 @@ const AttendancePage = () => {
                                     </Button>
                                   </TableCell>
                                 </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() =>
-                              append({
-                                member_id: "",
-                                is_present: true,
-                                notes: null,
-                              })
-                            }
-                            className="mt-2"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Member
-                          </Button>
-                        </div>
-                        <DialogFooter>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsCreateDialogOpen(false)}
-                          >
-                            Batal
-                          </Button>
-                          <Button
-                            type="submit"
-                            disabled={
-                              createAttendanceMutation.isPending ||
-                              watchedMembers.some((member) => !member.member_id)
-                            }
-                          >
-                            {createAttendanceMutation.isPending
-                              ? "Menyimpan..."
-                              : "Simpan"}
-                          </Button>
-                        </DialogFooter>
-                      </form>
-                    </FormProvider>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            append({ member_id: "", is_present: true, notes: null })
+                          }
+                          className="mt-2"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Member
+                        </Button>
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsCreateDialogOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={
+                            isCreating ||
+                            watchedMembers.some((member) => !member.member_id)
+                          }
+                        >
+                          {isCreating ? "Recording..." : "Record Attendance"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-500 text-sm">
-                    Today&apos;s Attendance
-                  </p>
-                  <h3 className="text-2xl font-bold text-gray-800 mt-1">
-                    {statsLoading
-                      ? "..."
-                      : `${statsData?.today.present}/${statsData?.today.total}`}
-                  </h3>
-                  <p className="text-green-500 text-sm mt-1">
-                    {statsLoading
-                      ? "..."
-                      : `${statsData?.today.percentage}% Present`}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle2 className="text-green-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-500 text-sm">This Week</p>
-                  <h3 className="text-2xl font-bold text-gray-800 mt-1">
-                    {statsLoading
-                      ? "..."
-                      : `${statsData?.week.present}/${statsData?.week.total}`}
-                  </h3>
-                  <p className="text-blue-500 text-sm mt-1">
-                    {statsLoading
-                      ? "..."
-                      : `${statsData?.week.percentage}% Present`}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <CalendarIcon className="text-blue-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-500 text-sm">This Month</p>
-                  <h3 className="text-2xl font-bold text-gray-800 mt-1">
-                    {statsLoading
-                      ? "..."
-                      : `${statsData?.month.present}/${statsData?.month.total}`}
-                  </h3>
-                  <p className="text-yellow-500 text-sm mt-1">
-                    {statsLoading
-                      ? "..."
-                      : `${statsData?.month.percentage}% Present`}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
-                  <CalendarIcon className="text-yellow-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-500 text-sm">Total Members</p>
-                  <h3 className="text-2xl font-bold text-gray-800 mt-1">
-                    {statsLoading ? "..." : statsData?.total_members}
-                  </h3>
-                  <p className="text-indigo-500 text-sm mt-1">Active</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                  <User className="text-indigo-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Error Alert */}
+      {hasErrors && (
+        <div className="px-4 lg:px-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>
+              {recordsError && <div>Records: {recordsError.message}</div>}
+              {statisticsError && <div>Statistics: {statisticsError.message}</div>}
+              {membersError && <div>Members: {membersError.message}</div>}
+              {createError && <div>Create: {createError.message}</div>}
+              {updateError && <div>Update: {updateError.message}</div>}
+              {deleteError && <div>Delete: {deleteError.message}</div>}
+            </AlertDescription>
+          </Alert>
         </div>
+      )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Record Attendance</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-48 justify-between font-normal"
-                      >
-                        {dateWatched
-                          ? format(new Date(dateWatched), "MMM d, yyyy")
-                          : "Select date"}
-                        <CalendarIcon className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={
-                          dateWatched ? new Date(dateWatched) : undefined
-                        }
-                        defaultMonth={
-                          dateWatched ? new Date(dateWatched) : new Date()
-                        }
-                        captionLayout="dropdown"
-                        onSelect={(date) => {
-                          if (date) {
-                            attendanceForm.setValue(
-                              "date",
-                              format(date, "yyyy-MM-dd")
-                            );
-                          }
-                        }}
-                        disabled={(date) =>
-                          date.getFullYear() < 2020 || date.getFullYear() > 2100
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      attendanceForm.resetField("members", {
-                        defaultValue: [
-                          { member_id: "", is_present: true, notes: null },
-                        ],
-                      })
-                    }
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Reset
-                  </Button>
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+        {isLoadingStatistics ? (
+          <>
+            {[...Array(4)].map((_, i) => (
+              <Card key={i}>
+                <CardHeader className="pb-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-32" />
+                </CardHeader>
+              </Card>
+            ))}
+          </>
+        ) : (
+          <>
+            <Card className="@container/card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Today&apos;s Attendance</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {statistics?.today.present}/{statistics?.today.total}
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="mt-4 flex justify-end">
-                <Button
-                  onClick={() => setIsCreateDialogOpen(true)}
-                  disabled={membersLoading || !members.length}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Attendance
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full justify-between bg-indigo-50 hover:bg-indigo-100"
-                  onClick={() => router.push("/members/add")}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <Plus className="h-5 w-5 text-indigo-600" />
-                    </div>
-                    <span className="font-medium">Add New Member</span>
-                  </div>
-                  <ArrowLeft className="h-4 w-4 text-gray-400 rotate-180" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between bg-green-50 hover:bg-green-100"
-                  onClick={handleExportExcel}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                      <FileSpreadsheet className="h-5 w-5 text-green-600" />
-                    </div>
-                    <span className="font-medium">Export Report</span>
-                  </div>
-                  <ArrowLeft className="h-4 w-4 text-gray-400 rotate-180" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between bg-blue-50 hover:bg-blue-100"
-                  onClick={() => router.push("/dashboard/attendance/analytics")}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <BarChart3 className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <span className="font-medium">View Statistics</span>
-                  </div>
-                  <ArrowLeft className="h-4 w-4 text-gray-400 rotate-180" />
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-between bg-purple-50 hover:bg-purple-100"
-                  onClick={() => router.push("/dashboard/attendance/history")}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                      <CalendarIcon className="h-5 w-5 text-purple-600" />
-                    </div>
-                    <span className="font-medium">Attendance History</span>
-                  </div>
-                  <ArrowLeft className="h-4 w-4 text-gray-400 rotate-180" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                <p className="text-xs text-muted-foreground">
+                  {statistics?.today.percentage}% present
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="@container/card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">This Week</CardTitle>
+                <CalendarIcon className="h-4 w-4 text-blue-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {statistics?.week.present}/{statistics?.week.total}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {statistics?.week.percentage}% present
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="@container/card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">This Month</CardTitle>
+                <CalendarIcon className="h-4 w-4 text-yellow-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {statistics?.month.present}/{statistics?.month.total}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {statistics?.month.percentage}% present
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="@container/card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+                <User className="h-4 w-4 text-indigo-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{statistics?.total_members}</div>
+                <p className="text-xs text-muted-foreground">Active members</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
+      </div>
 
+      {/* Attendance Records Table */}
+      <div className="px-4 lg:px-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Recent Attendance Records</CardTitle>
-                <CardDescription>
-                  Daftar catatan kehadiran anggota
-                </CardDescription>
+                <CardTitle>Attendance Records</CardTitle>
+                <CardDescription>Recent attendance records for members</CardDescription>
               </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm" aria-label="Filter records">
-                  <Filter className="h-4 w-4 text-indigo-600" />
-                </Button>
-                <Button variant="ghost" size="sm" aria-label="More options">
-                  <MoreVertical className="h-4 w-4 text-indigo-600" />
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search records..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-8 w-64"
+                  />
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline">
+                      <CalendarIcon className="h-4 w-4 mr-2" />
+                      Filter by Date
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      mode="single"
+                      selected={dateFilter ? new Date(dateFilter) : undefined}
+                      onSelect={(date) => {
+                        if (date) {
+                          setDateFilter(format(date, "yyyy-MM-dd"));
+                        } else {
+                          setDateFilter(undefined);
+                        }
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setDateFilter(undefined);
+                  }}
+                >
+                  Clear
                 </Button>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {attendanceLoading ? (
-              <div className="text-center py-6">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto" />
-                <p className="mt-2 text-gray-600">Memuat data absensi...</p>
+            {isLoadingRecords ? (
+              <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
               </div>
-            ) : attendanceError ? (
-              <div className="text-center py-6">
-                <p className="text-red-600">Error: {attendanceError.message}</p>
-              </div>
-            ) : filteredAttendance.length > 0 ? (
-              <>
-                <Table>
-                  <TableHeader>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead>Recorded By</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRecords.length === 0 ? (
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Member</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        {searchTerm || dateFilter
+                          ? "No records found matching your search."
+                          : "No attendance records recorded yet."}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAttendance.map((record) => (
+                  ) : (
+                    filteredRecords.map((record) => (
                       <TableRow key={record.id}>
-                        <TableCell>
-                          {format(new Date(record.date), "MMM d, yyyy")}
+                        <TableCell className="font-medium">
+                          {format(new Date(record.date), "MMM dd, yyyy")}
                         </TableCell>
-                        <TableCell>{record.member_name || "Unknown"}</TableCell>
+                                              <TableCell>
+                        <div className="font-medium">{record.member.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {record.member.student_id ? record.member.student_id : `ID: ${record.member.id}`}
+                          {record.member.email && ` | ${record.member.email}`}
+                        </div>
+                      </TableCell>
                         <TableCell>
-                          <span
-                            className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              record.is_present
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }`}
+                          <Badge
+                            variant="outline"
+                            className={record.is_present ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
                           >
                             {record.is_present ? "Hadir" : "Tidak Hadir"}
-                          </span>
+                          </Badge>
                         </TableCell>
                         <TableCell>{record.notes || "-"}</TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
+                        <TableCell>{record.recorder.name}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleViewRecord(record.id)}
-                              aria-label="View record"
+                              onClick={() => handleViewRecord(record)}
                             >
-                              <Eye className="h-4 w-4 text-indigo-600" />
+                              <Eye className="h-4 w-4" />
                             </Button>
                             {["koordinator", "staff"].includes(user.role) && (
                               <>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleEditRecord(record.id)}
-                                  aria-label="Edit record"
+                                  onClick={() => handleEditRecord(record)}
                                 >
-                                  <Edit className="h-4 w-4 text-blue-600" />
+                                  <Edit className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDeleteRecord(record.id)}
-                                  aria-label="Delete record"
+                                  onClick={() => handleDeleteRecord(record)}
                                 >
-                                  <Trash2 className="h-4 w-4 text-red-600" />
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </>
                             )}
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-sm text-gray-500">
-                    Showing <span className="font-medium">1</span> to{" "}
-                    <span className="font-medium">
-                      {filteredAttendance.length}
-                    </span>{" "}
-                    of{" "}
-                    <span className="font-medium">
-                      {filteredAttendance.length}
-                    </span>{" "}
-                    records
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" disabled>
-                      <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="bg-indigo-600 text-white"
-                    >
-                      1
-                    </Button>
-                    <Button variant="outline" size="sm" disabled>
-                      <ArrowLeft className="h-4 w-4 rotate-180" />
-                    </Button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <div className="text-gray-400 text-6xl mb-4">📅</div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Belum ada catatan absensi
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  {memberIdFromQuery
-                    ? "Anggota ini belum memiliki catatan absensi"
-                    : "Mulai dengan mencatat absensi pertama Anda"}
-                </p>
-                {["koordinator", "staff"].includes(user.role) && (
-                  <Button onClick={() => setIsCreateDialogOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Catat Absensi Pertama
-                  </Button>
-                )}
-              </div>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>
+      </div>
 
+      {/* Weekly Attendance Chart */}
+      <div className="px-4 lg:px-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -1159,259 +928,254 @@ const AttendancePage = () => {
                   <SelectItem value="this_week">This Week</SelectItem>
                   <SelectItem value="last_week">Last Week</SelectItem>
                   <SelectItem value="this_month">This Month</SelectItem>
-                  <SelectItem value="last_month">Last Month</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip formatter={(value) => `${Math.round(value)}%`} />
-                  <Bar dataKey="percentage" fill="#4f46e5" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* View Dialog */}
-        <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Detail Absensi</DialogTitle>
-              <DialogDescription>
-                Informasi lengkap tentang catatan absensi
-              </DialogDescription>
-            </DialogHeader>
-            {selectedRecord && (
-              <div className="space-y-4">
-                <div>
-                  <Label>Tanggal</Label>
-                  <p className="text-gray-600">
-                    {format(new Date(selectedRecord.date), "MMM d, yyyy")}
-                  </p>
-                </div>
-                <div>
-                  <Label>Anggota</Label>
-                  <p className="text-gray-600">
-                    {selectedRecord.member?.user?.name || "Unknown"}
-                  </p>
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <p
-                    className={`text-sm font-semibold ${
-                      selectedRecord.is_present
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }`}
-                  >
-                    {selectedRecord.is_present ? "Hadir" : "Tidak Hadir"}
-                  </p>
-                </div>
-                <div>
-                  <Label>Catatan</Label>
-                  <p className="text-gray-600">{selectedRecord.notes || "-"}</p>
-                </div>
-                <div>
-                  <Label>Pencatat</Label>
-                  <p className="text-gray-600">
-                    {selectedRecord.recorder?.name || "Unknown"}
-                  </p>
-                </div>
+            {isLoadingRecords ? (
+              <div className="h-64 flex items-center justify-center">
+                <Skeleton className="h-full w-full" />
+              </div>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip 
+                      formatter={(value) => [`${Number(value).toFixed(1)}%`, "Attendance Rate"]}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Bar dataKey="percentage" name="Attendance Rate">
+                      {chartData.map((entry, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.percentage >= 80 ? "#10B981" : entry.percentage >= 60 ? "#F59E0B" : "#EF4444"} 
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             )}
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsViewDialogOpen(false)}
-              >
-                Tutup
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Edit Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Absensi</DialogTitle>
-              <DialogDescription>Perbarui catatan absensi</DialogDescription>
-            </DialogHeader>
-            <FormProvider {...updateAttendanceForm}>
-              <form
-                onSubmit={updateAttendanceForm.handleSubmit(
-                  handleUpdateAttendance
-                )}
-                className="space-y-4"
-              >
+      {/* View Dialog */}
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Attendance Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about this attendance record
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRecord && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="date">Tanggal</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-between font-normal"
-                      >
-                        {updateAttendanceForm.watch("date")
-                          ? format(
-                              new Date(updateAttendanceForm.watch("date")),
-                              "MMM d, yyyy"
-                            )
-                          : "Select date"}
-                        <ChevronDownIcon className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={
-                          updateAttendanceForm.watch("date")
-                            ? new Date(updateAttendanceForm.watch("date"))
-                            : undefined
-                        }
-                        defaultMonth={
-                          updateAttendanceForm.watch("date")
-                            ? new Date(updateAttendanceForm.watch("date"))
-                            : new Date()
-                        }
-                        captionLayout="dropdown"
-                        onSelect={(date) => {
-                          if (date) {
-                            updateAttendanceForm.setValue(
-                              "date",
-                              format(date, "yyyy-MM-dd")
-                            );
-                          }
-                        }}
-                        disabled={(date) =>
-                          date.getFullYear() < 2020 || date.getFullYear() > 2100
-                        }
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  {updateAttendanceForm.formState.errors.date && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {updateAttendanceForm.formState.errors.date.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label>Anggota</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      updateAttendanceForm.setValue("member_id", value)
-                    }
-                    value={updateAttendanceForm.watch("member_id")}
-                    disabled
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a member" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {members.map((member) => (
-                        <SelectItem key={member.id} value={String(member.id)}>
-                          {member.name}
-                          {member.student_id ? ` - ${member.student_id}` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {updateAttendanceForm.formState.errors.member_id && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {updateAttendanceForm.formState.errors.member_id.message}
-                    </p>
-                  )}
+                  <Label>Date</Label>
+                  <p className="text-gray-600">
+                    {format(new Date(selectedRecord.date), "MMM dd, yyyy")}
+                  </p>
                 </div>
                 <div>
                   <Label>Status</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      updateAttendanceForm.setValue(
-                        "is_present",
-                        value === "true"
-                      )
-                    }
-                    value={updateAttendanceForm.watch("is_present").toString()}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="true">Hadir</SelectItem>
-                      <SelectItem value="false">Tidak Hadir</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {updateAttendanceForm.formState.errors.is_present && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {updateAttendanceForm.formState.errors.is_present.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label>Catatan</Label>
-                  <Input
-                    placeholder="Optional notes"
-                    value={updateAttendanceForm.watch("notes") || ""}
-                    onChange={(e) =>
-                      updateAttendanceForm.setValue(
-                        "notes",
-                        e.target.value || null
-                      )
-                    }
-                  />
-                  {updateAttendanceForm.formState.errors.notes && (
-                    <p className="text-sm text-red-500 mt-1">
-                      {updateAttendanceForm.formState.errors.notes.message}
-                    </p>
-                  )}
-                </div>
-                <DialogFooter>
-                  <Button
-                    type="button"
+                  <Badge
                     variant="outline"
-                    onClick={() => setIsEditDialogOpen(false)}
+                    className={selectedRecord.is_present ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
                   >
-                    Batal
-                  </Button>
-                  <Button type="submit">Simpan</Button>
-                </DialogFooter>
-              </form>
-            </FormProvider>
-          </DialogContent>
-        </Dialog>
+                    {selectedRecord.is_present ? "Hadir" : "Tidak Hadir"}
+                  </Badge>
+                </div>
+              </div>
+              <div>
+                <Label>Member</Label>
+                <p className="text-gray-600">{selectedRecord.member.name}</p>
+                <p className="text-sm text-gray-500">
+                  {selectedRecord.member.student_id ? `ID: ${selectedRecord.member.student_id}` : `Member ID: ${selectedRecord.member.id}`}
+                  {selectedRecord.member.email && ` | ${selectedRecord.member.email}`}
+                </p>
+              </div>
+              <div>
+                <Label>Notes</Label>
+                <p className="text-gray-600">{selectedRecord.notes || "-"}</p>
+              </div>
+              <div>
+                <Label>Recorded By</Label>
+                <p className="text-gray-600">{selectedRecord.recorder.name}</p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Konfirmasi Penghapusan</DialogTitle>
-              <DialogDescription>
-                Apakah Anda yakin ingin menghapus catatan absensi ini? Tindakan
-                ini tidak dapat dibatalkan.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsDeleteDialogOpen(false)}
-              >
-                Batal
-              </Button>
-              <Button variant="destructive" onClick={confirmDeleteRecord}>
-                Hapus
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </main>
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Attendance</DialogTitle>
+            <DialogDescription>Update this attendance record</DialogDescription>
+          </DialogHeader>
+          <Form {...updateAttendanceForm}>
+            <form
+              onSubmit={updateAttendanceForm.handleSubmit(handleUpdateAttendance)}
+              className="space-y-4"
+            >
+              <FormField
+                control={updateAttendanceForm.control}
+                name="date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date</FormLabel>
+                    <FormControl>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-between font-normal"
+                          >
+                            {field.value
+                              ? format(new Date(field.value), "MMM dd, yyyy")
+                              : "Select date"}
+                            <ChevronDownIcon className="h-4 w-4" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            defaultMonth={field.value ? new Date(field.value) : new Date()}
+                            captionLayout="dropdown"
+                            onSelect={(date) => {
+                              if (date) {
+                                field.onChange(format(date, "yyyy-MM-dd"));
+                              }
+                            }}
+                            disabled={(date) =>
+                              date.getFullYear() < 2020 || date.getFullYear() > 2100
+                            }
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div>
+                <Label>Member</Label>
+                <Select
+                  onValueChange={(value) =>
+                    updateAttendanceForm.setValue("member_id", value)
+                  }
+                  value={updateAttendanceForm.watch("member_id")}
+                  disabled
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members?.map((member) => (
+                      <SelectItem key={member.id} value={String(member.id)}>
+                        {member.name}
+                        {member.student_id ? ` - ${member.student_id}` : ` (ID: ${member.id})`}
+                        {member.email && ` - ${member.email}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {updateAttendanceForm.formState.errors.member_id && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {updateAttendanceForm.formState.errors.member_id.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select
+                  onValueChange={(value) =>
+                    updateAttendanceForm.setValue("is_present", value === "true")
+                  }
+                  value={updateAttendanceForm.watch("is_present").toString()}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">Hadir</SelectItem>
+                    <SelectItem value="false">Tidak Hadir</SelectItem>
+                  </SelectContent>
+                </Select>
+                {updateAttendanceForm.formState.errors.is_present && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {updateAttendanceForm.formState.errors.is_present.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label>Notes</Label>
+                <Input
+                  placeholder="Optional notes"
+                  value={updateAttendanceForm.watch("notes") || ""}
+                  onChange={(e) =>
+                    updateAttendanceForm.setValue("notes", e.target.value || null)
+                  }
+                />
+                {updateAttendanceForm.formState.errors.notes && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {updateAttendanceForm.formState.errors.notes.message}
+                  </p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isUpdating}>
+                  {isUpdating ? "Updating..." : "Update Attendance"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this attendance record? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAttendance} disabled={isDeleting}>
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

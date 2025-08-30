@@ -1,10 +1,10 @@
-import { FormMessage } from '@/components/ui/form';
+// User interfaces
 export interface User {
-     id: number;
-      name: string;
-      email: string;
-      role: "siswa" | "bendahara" | "koordinator" | "staff";
-      eschool_id:number;
+  id: number;
+  name: string;
+  email: string;
+  role: "siswa" | "bendahara" | "koordinator" | "staff";
+  eschool_id: number;
 }
 
 // Auth-related interfaces
@@ -14,13 +14,7 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  user: {
-      id: number;
-      name: string;
-      email: string;
-      role: "siswa" | "bendahara" | "koordinator" | "staff";
-      eschool_id:number;
-  };
+  user: User;
 }
 
 export interface RegisterRequest {
@@ -30,7 +24,9 @@ export interface RegisterRequest {
   password_confirmation: string;
 }
 
+// API response interfaces
 export interface ApiResponse<T = unknown> {
+  success: boolean;
   message: string;
   data?: T;
   errors?: Record<string, string[]>;
@@ -46,6 +42,7 @@ export interface PaginatedResponse<T> {
   to: number;
 }
 
+// Kas interfaces
 export interface KasRecord {
   id: number;
   eschool_id: number;
@@ -94,19 +91,16 @@ export interface KasSummary {
   };
 }
 
+// Member interfaces
 export interface Member {
   id: number;
+  student_id?: string | null;
+  phone?: string | null;
   name: string;
-  email?: string;
-  phone?: string;
-  school_id: number;
-  eschool_id: number;
-  created_at: string;
-  updated_at: string;
-  school?: School;
-  eschool?: Eschool;
+  email: string;
 }
 
+// School interfaces
 export interface School {
   id: number;
   name: string;
@@ -118,28 +112,19 @@ export interface School {
 export interface Eschool {
   id: number;
   name: string;
-  school_id:number;
-coordinator_id:number;
-treasurer_id:number;
+  school_id: number;
+  coordinator_id: number;
+  treasurer_id: number;
   description?: string;
-  monthly_kas_amount:number;
+  monthly_kas_amount: number;
   schedule_days: Array<string>;
-total_schedule_days :number;
-is_active:boolean;
+  total_schedule_days: number;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
 
-
-
-  // export interface AttendanceRecord {
-  //   id: string;
-  //   member_id: string;
-  //   date: string;
-  //   is_present: boolean;
-  //   notes: string | null;
-  //   member_name?: string;
-  // }
+// Attendance interfaces
 export interface AttendanceStats {
   today: { present: number; total: number; percentage: number };
   week: { present: number; total: number; percentage: number };
@@ -147,10 +132,8 @@ export interface AttendanceStats {
   total_members: number;
 }
 
-
-
 export interface AttendanceFormData {
-  eschool_id: string;
+  eschool_id: number;
   date: string;
   members: {
     member_id: string;
@@ -162,23 +145,11 @@ export interface AttendanceFormData {
 export interface CreateAttendanceParams {
   eschool_id?: number;
   members: AttendanceFormData;
-}export interface User {
-  id: number;
-  name: string;
-  email: string;
 }
 
-export interface Member {
+export interface UpdateAttendanceParams {
   id: number;
-  student_id?: string | null;
-  phone?: string | null;
-  user: User;
-}
-
-export interface Recorder {
-  id: number;
-  name: string;
-  email: string;
+  data: any;
 }
 
 export interface AttendanceRecord {
@@ -187,7 +158,7 @@ export interface AttendanceRecord {
   is_present: boolean;
   notes?: string | null;
   member: Member;
-  recorder: Recorder;
+  recorder: User;
 }
 
 export interface PaginationLinks {
