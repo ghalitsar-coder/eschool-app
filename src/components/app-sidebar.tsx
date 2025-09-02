@@ -32,40 +32,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { useAuth } from "@/hooks/use-auth"
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
-    },
-    {
-      title: "Kas",
-      url: "/dashboard/kas",
-      icon: IconListDetails,
-    },
-    {
-      title: "Attendance",
-      url: "/dashboard/attendance",
-      icon: IconChartBar,
-    },
-    {
-      title: "Members",
-      url: "/dashboard/members",
-      icon: IconFolder,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: IconUsers,
-    },
-  ],
   navClouds: [
     {
       title: "Capture",
@@ -151,6 +120,73 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useAuth()
+  console.log(`THIS IS  ~ user:`, user)
+  
+  // Generate navigation items based on user role
+  const getNavItems = () => {
+    const baseItems = [
+      {
+        title: "Profile",
+        url: "/dashboard/profile",
+        icon: IconUsers,
+      },
+    ]
+    
+    if (user?.role === "bendahara") {
+      return [
+        ...baseItems,
+        {
+          title: "Kas",
+          url: "/dashboard/kas",
+          icon: IconListDetails,
+        },
+      ]
+    }
+    
+    if (user?.role === "koordinator") {
+      return [
+        ...baseItems,
+        {
+          title: "Attendance",
+          url: "/dashboard/attendance",
+          icon: IconChartBar,
+        },
+        {
+          title: "Members",
+          url: "/dashboard/members",
+          icon: IconFolder,
+        },
+      ]
+    }
+    
+    if (user?.role === "staff") {
+      return [
+        ...baseItems,
+        {
+          title: "Eschool",
+          url: "/dashboard/eschool",
+          icon: IconUsers,
+        },
+      ]
+    }
+    
+    if (user?.role === "siswa") {
+      return baseItems
+    }
+    
+    // Default navigation
+    return [
+      {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: IconDashboard,
+      },
+    ]
+  }
+  
+  const navItems = getNavItems()
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -169,12 +205,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={navItems} />
+        {/* <NavDocuments items={data.documents} /> */}
+        {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   )

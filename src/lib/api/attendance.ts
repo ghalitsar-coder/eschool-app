@@ -3,32 +3,53 @@ import {
   ApiResponse, 
   AttendanceFormData, 
   AttendanceRecord, 
-  AttendanceStats 
+  AttendanceStats,
+  AttendanceAnalytics
 } from "@/types/api";
 import apiClient from "./client";
 
 export const attendanceApi = {
   // Record attendance
   recordAttendance: async (
-    data: AttendanceFormData
+    data: FormData | AttendanceFormData
   ): Promise<ApiResponse<AttendanceRecord>> => {
     try {
       // Log the data being sent for debugging
       console.log("Sending attendance data:", data);
       
-      const formattedData = {
-        ...data,
-        members: data.members.map(member => ({
-          ...member,
-          is_present: Boolean(member.is_present), // Ensure boolean type
-          member_id: Number(member.member_id) // Ensure number type
-        }))
-      };
+      let requestData = data;
+      let headers = {};
       
-      // Log the formatted data
-      console.log("Formatted attendance data:", formattedData);
+      // If it's FormData, we need to handle boolean conversion on server side
+      if (data instanceof FormData) {
+        requestData = data;
+        headers = {
+          'Content-Type': 'multipart/form-data',
+        };
+        console.log("Sending FormData with is_present as 1/0:", data);
+      } else {
+        const formattedData = {
+          ...data,
+          members: data.members.map(member => ({
+            ...member,
+            is_present: Boolean(member.is_present), // Ensure boolean type
+            member_id: Number(member.member_id) // Ensure number type
+          }))
+        };
+        
+        requestData = formattedData;
+        headers = {
+          'Content-Type': 'application/json',
+        };
+        console.log("Formatted attendance data:", formattedData);
+      }
       
-      const response = await apiClient.post("/attendance/record", formattedData);
+      const response = await apiClient.post<ApiResponse<AttendanceRecord>>(
+        `/attendance/record`,
+        requestData,
+        { headers }
+      );
+      
       return response.data;
     } catch (error: any) {
       console.error("Error recording attendance:", error);
@@ -52,9 +73,26 @@ export const attendanceApi = {
   getAttendanceRecords: async (params?: {
     eschoolId?: number;
     date?: string;
-      start_date?: string;
-      end_date?: string;
-  }): Promise<AttendanceRecord[]> => {
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+    member_id?: number;
+    is_present?: boolean;
+    page?: number;
+    per_page?: number;
+  }): Promise<{
+    data: AttendanceRecord[];
+    meta: {
+      total: number;
+      per_page: number;
+      current_page: number;
+      last_page: number;
+      from: number;
+      to: number;
+      has_next_page: boolean;
+      has_prev_page: boolean;
+    };
+  }> => {
     try {
       // Convert camelCase keys to snake_case to match backend expectations
       const convertedParams = params ? {
@@ -62,12 +100,35 @@ export const attendanceApi = {
         date: params.date,
         start_date: params.start_date,
         end_date: params.end_date,
+        search: params.search,
+        member_id: params.member_id,
+        is_present: params.is_present,
+        page: params.page,
+        per_page: params.per_page || 10, // Default 10 per page
       } : {};
       
+      // Remove undefined values to avoid sending empty parameters
+      const cleanParams = Object.fromEntries(
+        Object.entries(convertedParams).filter(([, value]) => value !== undefined)
+      );
+      
       const response = await apiClient.get("/attendance/records", { 
-        params: convertedParams 
+        params: cleanParams 
       });
-      return Array.isArray(response.data.data) ? response.data.data : [];
+      
+      return {
+        data: Array.isArray(response.data.data) ? response.data.data : [],
+        meta: response.data.meta || {
+          total: 0,
+          per_page: 10,
+          current_page: 1,
+          last_page: 1,
+          from: 0,
+          to: 0,
+          has_next_page: false,
+          has_prev_page: false
+        }
+      };
     } catch (error) {
       console.error("Error fetching attendance records:", error);
       throw error;
@@ -87,17 +148,45 @@ export const attendanceApi = {
     }
   },
 
+  // Get attendance analytics
+  getAttendanceAnalytics: async (params: {
+    eschoolId: number;
+    period?: string;
+  }): Promise<AttendanceAnalytics> => {
+    try {
+      const response = await apiClient.get("/attendance/analytics", {
+        params: { 
+          eschool_id: params.eschoolId,
+          period: params.period
+        }
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching attendance analytics:", error);
+      throw error;
+    }
+  },
+
   // Get members for attendance
   getAttendanceMembers: async (eschoolId: number): Promise<any[]> => {
     try {
-      // This would need to be implemented in the backend
-      // For now, we'll use the members endpoint
+      // Use the members endpoint with eschool_id parameter
       const response = await apiClient.get(`/members`, {
         params: { eschool_id: eschoolId }
       });
       console.log(`🚀 ~ attendance.ts:71 ~ response:`, response)
 
-      return response.data.data || [];
+      // If response has data property (paginated), return data
+      if (response.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      }
+      
+      // If response is directly an array, return it
+      if (response.data && Array.isArray(response.data)) {
+        return response.data;
+      }
+      
+      return [];
     } catch (error) {
       console.error("Error fetching attendance members:", error);
       throw error;
@@ -134,11 +223,18 @@ export const attendanceApi = {
     eschool_id: number;
     start_date?: string;
     end_date?: string;
-    format?: "csv" | "excel";
+    format?: "csv" | "pdf";
   }): Promise<Blob> => {
     try {
-      const response = await apiClient.get("/attendance/export", {
-        params,
+      // Use the correct endpoint based on format
+      const endpoint = params.format === "pdf" ? "/attendance/export/pdf" : "/attendance/export/csv";
+      
+      const response = await apiClient.get(endpoint, {
+        params: {
+          eschool_id: params.eschool_id,
+          start_date: params.start_date,
+          end_date: params.end_date,
+        },
         responseType: "blob",
       });
       return response.data;

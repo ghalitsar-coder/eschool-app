@@ -5,6 +5,7 @@ export interface User {
   email: string;
   role: "siswa" | "bendahara" | "koordinator" | "staff";
   eschool_id: number;
+  school_id?: number;
 }
 
 // Auth-related interfaces
@@ -112,14 +113,17 @@ export interface School {
 export interface Eschool {
   id: number;
   name: string;
+  description: string | null;
   school_id: number;
-  coordinator_id: number;
-  treasurer_id: number;
-  description?: string;
-  monthly_kas_amount: number;
-  schedule_days: Array<string>;
-  total_schedule_days: number;
+  coordinator_id: number | null;
+  treasurer_id: number | null;
+  monthly_kas_amount: number | null;
+  schedule_days: string[] | null;
+  total_schedule_days: number | null;
   is_active: boolean;
+  members_count: number;
+  coordinator?: User;
+  treasurer?: User;
   created_at: string;
   updated_at: string;
 }
@@ -130,6 +134,46 @@ export interface AttendanceStats {
   week: { present: number; total: number; percentage: number };
   month: { present: number; total: number; percentage: number };
   total_members: number;
+}
+
+export interface AttendanceAnalytics {
+  period: string;
+  date_range: {
+    start: string;
+    end: string;
+  };
+  overall: {
+    total_members: number;
+    total_present: number;
+    total_possible: number;
+    attendance_rate: number;
+  };
+  daily_summary: Array<{
+    date: string;
+    formatted_date: string;
+    day_name: string;
+    present: number;
+    absent: number;
+    total: number;
+    attendance_rate: number;
+  }>;
+  member_attendance: Array<{
+    id: number;
+    name: string;
+    student_id: string | null;
+    present_days: number;
+    total_days: number;
+    attendance_rate: number;
+    status: string;
+  }>;
+  weekday_analysis: Array<{
+    day: string;
+    short_day: string;
+    average_attendance_rate: number;
+    total_sessions: number;
+    total_present: number;
+    total_possible: number;
+  }>;
 }
 
 export interface AttendanceFormData {
@@ -185,3 +229,5 @@ export interface AttendanceResponse {
   success: boolean;
   message: string;
 }
+
+

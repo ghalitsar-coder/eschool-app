@@ -112,6 +112,10 @@ const MemberManagementPage = () => {
     userRole: user?.role,
   });
 
+  // Note: The backend automatically filters members by school for coordinators and staff
+  // For coordinators: Only members from the same school as the coordinator's eschool
+  // For staff: Only members from the staff's assigned school
+
  
 
   const handleViewMember = (member: any) => {

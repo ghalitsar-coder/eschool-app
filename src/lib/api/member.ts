@@ -69,18 +69,34 @@ interface ApiResponse<T> {
 // API functions
 export const memberApi = {
   // Get members
+  // Note: The backend automatically filters members by school for coordinators and staff
+  // For coordinators: Only members from the same school as the coordinator's eschool
+  // For staff: Only members from the staff's assigned school
   getMembers: async (params?: {
     page?: number;
     per_page?: number;
     search?: string;
     sort_by?: string;
     sort_direction?: string;
+    eschool_id?: number;
   }) => {
     try {
       const response = await apiClient.get<ApiResponse<Member[]>>('/members', { params });
       return response.data;
     } catch (error) {
       console.error('Error fetching members:', error);
+      throw error;
+    }
+  },
+
+  // Get members by eschool ID (for attendance and kas pages)
+  getMembersByEschool: async (eschoolId: number) => {
+    try {
+      const response = await apiClient.get<ApiResponse<Member[]>>(`/members?eschool_id=${eschoolId}`);
+      console.log(`THIS IS  ~ response:`, response)
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching members for eschool ${eschoolId}:`, error);
       throw error;
     }
   },

@@ -1,6 +1,7 @@
 // kasApi.ts - Kas Management API based on Laravel backend
 import { ApiResponse, KasRecord, Member, KasSummary, KasPayment } from "@/types/api";
 import apiClient from "./client";
+import { IncomeFormData } from "@/types/page/kas";
 
 export interface KasIncomeData {
   description: string;
@@ -16,6 +17,7 @@ export interface KasIncomeData {
 export interface KasExpenseData {
   amount: number;
   description: string;
+  category?: string;
   date: string;
 }
 
@@ -40,6 +42,7 @@ export interface KasRecordsResponse {
     type: "income" | "expense";
     amount: number;
     description: string;
+    category?: string;
     date: string;
     created_at: string;
     payments?: {
@@ -62,7 +65,7 @@ export const kasApi = {
 
   // Add income record with payments
   addIncome: async (
-    data: KasIncomeData
+    data: IncomeFormData
   ): Promise<ApiResponse<{ kas_record_id: number }>> => {
     try {
       const response = await apiClient.post("/kas/income", data);
@@ -82,6 +85,20 @@ export const kasApi = {
       return response.data;
     } catch (error) {
       console.error("Error adding expense:", error);
+      throw error;
+    }
+  },
+
+  // Update a kas record
+  updateRecord: async (
+    id: number,
+    data: Partial<KasExpenseData>
+  ): Promise<ApiResponse<KasRecord>> => {
+    try {
+      const response = await apiClient.put(`/kas/records/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error("Error updating record:", error);
       throw error;
     }
   },
@@ -148,16 +165,46 @@ export const kasApi = {
     month?: number;
     year?: number;
     format?: "csv" | "excel";
+    date_from?: string;
+    date_to?: string;
   }): Promise<Blob> => {
     try {
+      // For CSV export
+      if (params.format === "csv") {
+        const response = await apiClient.get("/kas/export/csv", {
+          params: {
+            type: params.type,
+            month: params.month,
+            year: params.year,
+            date_from: params.date_from,
+            date_to: params.date_to
+          },
+          responseType: "blob",
+        });
+        return response.data;
+      }
+      
+      // For other formats, use the existing endpoint
       const response = await apiClient.get("/kas/export", {
         params,
         responseType: "blob",
       });
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error exporting kas records:", error);
-      throw error;
+      
+      // Handle specific error cases
+      if (error.response) {
+        // Server responded with error status
+        const errorMessage = error.response.data?.message || 'Unknown server error';
+        throw new Error(`Export failed: ${errorMessage}`);
+      } else if (error.request) {
+        // Request was made but no response received
+        throw new Error('Export failed: No response from server. Please check your connection.');
+      } else {
+        // Something else happened
+        throw new Error(`Export failed: ${error.message}`);
+      }
     }
   },
 };

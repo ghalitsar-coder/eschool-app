@@ -1,22 +1,41 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import attendanceApi from '@/lib/api/attendance';
-import { 
-  AttendanceRecord, 
-  AttendanceStats, 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import attendanceApi from "@/lib/api/attendance";
+import {
+  AttendanceRecord,
+  AttendanceStats,
   AttendanceFormData,
-  UpdateAttendanceParams
-} from '@/types/api';
-import { useAuth } from './use-auth';
+  UpdateAttendanceParams,
+  AttendanceAnalytics,
+} from "@/types/api";
+import { useAuth } from "./use-auth";
+import memberApi from "@/lib/api/member";
 
 // Types for our hooks
 interface UseAttendanceParams {
   date?: string;
   start_date?: string;
   end_date?: string;
+  search?: string;
+  member_id?: number;
+  is_present?: boolean;
+  page?: number;
+  per_page?: number;
+}
+
+interface AttendanceMeta {
+  total: number;
+  per_page: number;
+  current_page: number;
+  last_page: number;
+  from: number;
+  to: number;
+  has_next_page: boolean;
+  has_prev_page: boolean;
 }
 
 interface UseAttendanceReturn {
   records: AttendanceRecord[] | undefined;
+  meta: AttendanceMeta | undefined;
   isLoadingRecords: boolean;
   recordsError: Error | null;
   refetchRecords: () => void;
@@ -27,6 +46,17 @@ interface UseStatisticsReturn {
   isLoadingStatistics: boolean;
   statisticsError: Error | null;
   refetchStatistics: () => void;
+}
+
+interface UseAnalyticsParams {
+  period?: string;
+}
+
+interface UseAnalyticsReturn {
+  analytics: AttendanceAnalytics | undefined;
+  isLoadingAnalytics: boolean;
+  analyticsError: Error | null;
+  refetchAnalytics: () => void;
 }
 
 interface UseMembersReturn {
@@ -54,18 +84,23 @@ interface UseDeleteAttendanceReturn {
 }
 
 // Hook to fetch attendance records
-export const useAttendance = (params?: UseAttendanceParams): UseAttendanceReturn => {
+export const useAttendance = (
+  params?: UseAttendanceParams
+): UseAttendanceReturn => {
   const { user } = useAuth();
 
-  const { data, isLoading, error, refetch } = useQuery<AttendanceRecord[], Error>({
-    queryKey: ['attendance', user?.eschool_id, params],
+  const { data, isLoading, error, refetch } = useQuery<
+    { data: AttendanceRecord[]; meta: AttendanceMeta },
+    Error
+  >({
+    queryKey: ["attendance", user?.eschool_id, params],
     queryFn: async () => {
       if (!user?.eschool_id) {
         throw new Error("No eschool ID found");
       }
       const response = await attendanceApi.getAttendanceRecords({
         eschoolId: user.eschool_id,
-        ...params
+        ...params,
       });
       return response;
     },
@@ -73,7 +108,8 @@ export const useAttendance = (params?: UseAttendanceParams): UseAttendanceReturn
   });
 
   return {
-    records: data,
+    records: data?.data,
+    meta: data?.meta,
     isLoadingRecords: isLoading,
     recordsError: error || null,
     refetchRecords: refetch,
@@ -85,12 +121,14 @@ export const useAttendanceStatistics = (): UseStatisticsReturn => {
   const { user } = useAuth();
 
   const { data, isLoading, error, refetch } = useQuery<AttendanceStats, Error>({
-    queryKey: ['attendance-statistics', user?.eschool_id],
+    queryKey: ["attendance-statistics", user?.eschool_id],
     queryFn: async () => {
       if (!user?.eschool_id) {
         throw new Error("No eschool ID found");
       }
-      const response = await attendanceApi.getAttendanceStatistics(user.eschool_id);
+      const response = await attendanceApi.getAttendanceStatistics(
+        user.eschool_id
+      );
       return response;
     },
     enabled: !!user?.eschool_id,
@@ -104,20 +142,58 @@ export const useAttendanceStatistics = (): UseStatisticsReturn => {
   };
 };
 
-// Hook to fetch members for attendance
-export const useAttendanceMembers = (): UseMembersReturn => {
+// Hook to fetch attendance analytics
+export const useAttendanceAnalytics = (
+  params?: UseAnalyticsParams
+): UseAnalyticsReturn => {
   const { user } = useAuth();
 
-  const { data, isLoading, error } = useQuery<any[], Error>({
-    queryKey: ['attendance-members', user?.eschool_id],
+  const { data, isLoading, error, refetch } = useQuery<
+    AttendanceAnalytics,
+    Error
+  >({
+    queryKey: [
+      "attendance-analytics",
+      user?.eschool_id,
+      params?.period || "week",
+    ],
     queryFn: async () => {
       if (!user?.eschool_id) {
         throw new Error("No eschool ID found");
       }
-      // Assuming we have an API endpoint to get members for an eschool
-      // This would need to be implemented in the backend
-      const response = await attendanceApi.getAttendanceMembers(user.eschool_id);
-      return response;
+      const response = await attendanceApi.getAttendanceAnalytics({
+        eschoolId: user.eschool_id,
+        period: params?.period || "week",
+      });
+      // Extract data from response
+      return response.data;
+    },
+    enabled: !!user?.eschool_id,
+  });
+
+  return {
+    analytics: data,
+    isLoadingAnalytics: isLoading,
+    analyticsError: error || null,
+    refetchAnalytics: refetch,
+  };
+};
+
+// Hook to fetch members for attendance
+export const useAttendanceMembers = (): UseMembersReturn => {
+  const { user } = useAuth();
+  console.log(`THIS IS  ~ user:`, user);
+
+  const { data, isLoading, error } = useQuery<any[], Error>({
+    queryKey: ["attendance-members", user?.eschool_id],
+    queryFn: async () => {
+      if (!user?.eschool_id) {
+        throw new Error("No eschool ID found");
+      }
+      // Use the member API to get members by eschool ID
+      const response = await memberApi.getMembersByEschool(user.eschool_id);
+      console.log(`THIS IS  ~ response:`, response.data.slice(0, 3));
+      return response.data || [];
     },
     enabled: !!user?.eschool_id,
   });
@@ -135,20 +211,14 @@ export const useCreateAttendance = (): UseCreateAttendanceReturn => {
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending, error } = useMutation({
-    mutationFn: async (data: AttendanceFormData) => {
-      if (!user?.eschool_id) {
-        throw new Error("No eschool ID found");
-      }
-      const response = await attendanceApi.recordAttendance({
-        eschool_id: user.eschool_id,
-        ...data
-      });
-      return response;
+    mutationFn: async (data: FormData | AttendanceFormData) => {
+      const response = await attendanceApi.recordAttendance(data);
+      return response.data;
     },
     onSuccess: () => {
-      // Invalidate and refetch attendance queries
-      queryClient.invalidateQueries({ queryKey: ['attendance', user?.eschool_id] });
-      queryClient.invalidateQueries({ queryKey: ['attendance-statistics', user?.eschool_id] });
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance-analytics"] });
     },
   });
 
@@ -171,14 +241,21 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
       }
       const response = await attendanceApi.updateAttendance(id, {
         eschool_id: user.eschool_id,
-        ...data
+        ...data,
       });
       return response;
     },
     onSuccess: () => {
       // Invalidate and refetch attendance queries
-      queryClient.invalidateQueries({ queryKey: ['attendance', user?.eschool_id] });
-      queryClient.invalidateQueries({ queryKey: ['attendance-statistics', user?.eschool_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", user?.eschool_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["attendance-statistics", user?.eschool_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["attendance-analytics", user?.eschool_id],
+      });
     },
   });
 
@@ -204,8 +281,15 @@ export const useDeleteAttendance = (): UseDeleteAttendanceReturn => {
     },
     onSuccess: () => {
       // Invalidate and refetch attendance queries
-      queryClient.invalidateQueries({ queryKey: ['attendance', user?.eschool_id] });
-      queryClient.invalidateQueries({ queryKey: ['attendance-statistics', user?.eschool_id] });
+      queryClient.invalidateQueries({
+        queryKey: ["attendance", user?.eschool_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["attendance-statistics", user?.eschool_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["attendance-analytics", user?.eschool_id],
+      });
     },
   });
 
@@ -216,45 +300,100 @@ export const useDeleteAttendance = (): UseDeleteAttendanceReturn => {
   };
 };
 
-// Combined hook for attendance management
-export const useAttendanceManagement = () => {
+// Combined hook for attendance management with server-side filtering
+export const useAttendanceManagement = (
+  analyticsParams?: UseAnalyticsParams,
+  filterParams?: UseAttendanceParams
+) => {
   const { user } = useAuth();
-  
-  // Use all the individual hooks
-  const { records, isLoadingRecords, recordsError, refetchRecords } = useAttendance();
-  const { statistics, isLoadingStatistics, statisticsError, refetchStatistics } = useAttendanceStatistics();
+
+  // Use all the individual hooks with filter params
+  const { records, meta, isLoadingRecords, recordsError, refetchRecords } =
+    useAttendance(filterParams);
+  const {
+    statistics,
+    isLoadingStatistics,
+    statisticsError,
+    refetchStatistics,
+  } = useAttendanceStatistics();
+  const { analytics, isLoadingAnalytics, analyticsError, refetchAnalytics } =
+    useAttendanceAnalytics(analyticsParams);
   const { members, isLoadingMembers, membersError } = useAttendanceMembers();
   const { createAttendance, isCreating, createError } = useCreateAttendance();
   const { updateAttendance, isUpdating, updateError } = useUpdateAttendance();
   const { deleteAttendance, isDeleting, deleteError } = useDeleteAttendance();
 
+  // Export function
+  const exportRecords = async (params: {
+    start_date?: string;
+    end_date?: string;
+    format?: "csv" | "pdf";
+  }) => {
+    try {
+      if (!user?.eschool_id) {
+        throw new Error("No eschool ID found");
+      }
+
+      const exportParams = {
+        eschool_id: user.eschool_id,
+        ...params,
+      };
+
+      const blob = await attendanceApi.exportRecords(exportParams);
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const fileName = `attendance_records_${
+        new Date().toISOString().split("T")[0]
+      }.${params.format || "csv"}`;
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      return blob;
+    } catch (error: any) {
+      console.error("Export error:", error);
+      throw error;
+    }
+  };
+
   return {
     // Data
     records,
+    meta,
     statistics,
+    analytics,
     members,
-    
+
     // Loading states
     isLoadingRecords,
     isLoadingStatistics,
+    isLoadingAnalytics,
     isLoadingMembers,
     isCreating,
     isUpdating,
     isDeleting,
-    
+
     // Errors
     recordsError,
     statisticsError,
+    analyticsError,
     membersError,
     createError,
     updateError,
     deleteError,
-    
+
     // Functions
     createAttendance,
     updateAttendance,
     deleteAttendance,
+    exportRecords,
     refetchRecords,
     refetchStatistics,
+    refetchAnalytics,
   };
 };
