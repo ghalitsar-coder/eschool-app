@@ -127,6 +127,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const getNavItems = () => {
     const baseItems = [
       {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: IconUsers,
+      },
+      {
         title: "Profile",
         url: "/dashboard/profile",
         icon: IconUsers,

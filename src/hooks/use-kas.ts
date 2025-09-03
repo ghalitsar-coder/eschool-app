@@ -166,9 +166,7 @@ export const useExportKasRecords = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `kas-records-${new Date().toISOString().split("T")[0]}.${
-        params.format || "csv"
-      }`;
+      link.download = `kas-records-${new Date().toISOString().split("T")[0]}.${params.format || "csv"}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -253,13 +251,13 @@ export const useKasManagement = () => {
     isExporting: exportRecordsMutation.isPending,
 
     // Error states
-    recordsError: recordsQuery.error,
-    summaryError: summaryQuery.error,
-    membersError: membersQuery.error,
-    addIncomeError: addIncomeMutation.error,
-    addExpenseError: addExpenseMutation.error,
-    updateRecordError: updateRecordMutation.error,
-    exportError: exportRecordsMutation.error,
+    recordsError: recordsQuery.error || null,
+    summaryError: summaryQuery.error || null,
+    membersError: membersQuery.error || null,
+    addIncomeError: addIncomeMutation.error || null,
+    addExpenseError: addExpenseMutation.error || null,
+    updateRecordError: updateRecordMutation.error || null,
+    exportError: exportRecordsMutation.error || null,
 
     // Actions
     addIncome: addIncomeMutation.mutate,

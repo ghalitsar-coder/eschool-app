@@ -13,20 +13,15 @@ export const authQueryKeys = {
   user: ["auth", "user"] as const,
 };
 
-
-
 export const useLogin = () => {
   const { login } = useAuthStore();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: authApi.login,
-    onSuccess: (response:ApiResponse<LoginResponse>) => {
-    
+    onSuccess: (response: ApiResponse<LoginResponse>) => {
+      login(response.data.user); // Type assertion for now
 
-    login(response.data.user); // Type assertion for now
-
-  
       queryClient.invalidateQueries({
         queryKey: authQueryKeys.profile,
       });
@@ -74,23 +69,6 @@ export const useLogout = () => {
   });
 };
 
-// export const useProfile = () => {
-//   const { user, isAuthenticated } = useAuthStore();
-
-//   return useQuery({
-//     queryKey: authQueryKeys.profile,
-//     queryFn: authApi.getProfile,
-//     enabled: !!user && isAuthenticated,
-//     select: (data) => data.data,
-//     staleTime: 5 * 60 * 1000, // 5 minutes
-//     retry: (failureCount, error: unknown) => {
-//       // Don't retry on 401 errors
-//       if (error?.response?.status === 401) return false;
-//       return failureCount < 3;
-//     },
-//   });
-// };
-
 export const useCurrentUser = () => {
   const { isAuthenticated, setUser, logout } = useAuthStore();
 
@@ -99,7 +77,7 @@ export const useCurrentUser = () => {
     queryFn: authApi.getCurrentUser,
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error: unknown) => {
+    retry: (failureCount, error: any) => {
       // Don't retry on 401 errors
       if (error?.response?.status === 401) {
         logout(); // Clear auth state on 401
@@ -140,17 +118,14 @@ export const useRefreshToken = () => {
 
   return useMutation({
     mutationFn: authApi.refresh,
-    onSuccess: (data : LoginResponse) => {
-      
-       setUser(data.user);
+    onSuccess: (data: LoginResponse) => {
+      setUser(data.user);
 
-         
-
-        // Invalidate queries to refetch with new token
-        queryClient.invalidateQueries({
-          queryKey: authQueryKeys.profile,
-        });
-        queryClient.invalidateQueries({ queryKey: authQueryKeys.user });
+      // Invalidate queries to refetch with new token
+      queryClient.invalidateQueries({
+        queryKey: authQueryKeys.profile,
+      });
+      queryClient.invalidateQueries({ queryKey: authQueryKeys.user });
     },
     onError: () => {
       logout();
@@ -169,7 +144,7 @@ export const useAuth = () => {
 
   // Helper method for making authenticated API requests
   const apiRequest = useCallback(
-    async <T>(endpoint: string, options: unknown = {}): Promise<T> => {
+    async <T>(endpoint: string, options: any = {}): Promise<T> => {
       try {
         const response = await apiClient.request<T>({
           url: endpoint,

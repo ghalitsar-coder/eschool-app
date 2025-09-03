@@ -19,18 +19,76 @@ import {
   Area,
 } from "recharts";
 import CustomTooltip from "./CustomTooltip";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FinancialChartsProps {
-  summary: {
+  summary?: {
     summary: {
       total_income: number;
       total_expense: number;
     };
   };
-  records: any[];
+  records?: any[];
+  isLoading?: boolean;
+  error?: any;
 }
 
-const FinancialCharts: React.FC<FinancialChartsProps> = ({ summary, records }) => {
+const FinancialCharts: React.FC<FinancialChartsProps> = ({ 
+  summary, 
+  records = [],
+  isLoading = false,
+  error 
+}) => {
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <Skeleton className="h-6 w-48 mb-4" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <Skeleton className="h-6 w-48 mb-4" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <Skeleton className="h-6 w-48 mb-4" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <Skeleton className="h-6 w-48 mb-4" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </div>
+        <div className="bg-muted/50 p-4 rounded-lg">
+          <Skeleton className="h-6 w-48 mb-4" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="text-red-500">
+        Error loading chart data: {error.message || "Unknown error"}
+      </div>
+    );
+  }
+
+  // Check if required data is available
+  if (!summary || !records) {
+    return (
+      <div className="text-muted-foreground">
+        No data available for charts
+      </div>
+    );
+  }
+
   // Generate monthly data from real records
   const monthlyData = useMemo(() => {
     // Initialize data for all 12 months
@@ -43,27 +101,31 @@ const FinancialCharts: React.FC<FinancialChartsProps> = ({ summary, records }) =
     }));
 
     // Process real records
-    records.forEach(record => {
-      const date = new Date(record.date);
-      const monthIndex = date.getMonth(); // 0-11
-      
-      if (monthIndex >= 0 && monthIndex < 12) {
-        if (record.type === 'income') {
-          data[monthIndex].income += record.amount;
-        } else if (record.type === 'expense') {
-          data[monthIndex].expense += record.amount;
+    if (Array.isArray(records)) {
+      records.forEach(record => {
+        if (!record || !record.date) return;
+        
+        const date = new Date(record.date);
+        const monthIndex = date.getMonth(); // 0-11
+        
+        if (monthIndex >= 0 && monthIndex < 12) {
+          if (record.type === 'income') {
+            data[monthIndex].income += (record.amount || 0);
+          } else if (record.type === 'expense') {
+            data[monthIndex].expense += (record.amount || 0);
+          }
+          data[monthIndex].balance = data[monthIndex].income - data[monthIndex].expense;
         }
-        data[monthIndex].balance = data[monthIndex].income - data[monthIndex].expense;
-      }
-    });
+      });
+    }
 
     return data;
   }, [records]);
 
   // Generate data for income vs expense pie chart
   const incomeVsExpenseData = useMemo(() => [
-    { name: 'Income', value: summary.summary.total_income },
-    { name: 'Expense', value: summary.summary.total_expense },
+    { name: 'Income', value: summary?.summary?.total_income || 0 },
+    { name: 'Expense', value: summary?.summary?.total_expense || 0 },
   ], [summary]);
 
   // Generate data for expense categories from real records
@@ -71,12 +133,14 @@ const FinancialCharts: React.FC<FinancialChartsProps> = ({ summary, records }) =
     const categoryMap: Record<string, number> = {};
     
     // Process real expense records
-    records.forEach(record => {
-      if (record.type === 'expense') {
-        const category = record.category || 'Uncategorized';
-        categoryMap[category] = (categoryMap[category] || 0) + record.amount;
-      }
-    });
+    if (Array.isArray(records)) {
+      records.forEach(record => {
+        if (record && record.type === 'expense') {
+          const category = record.category || 'Uncategorized';
+          categoryMap[category] = (categoryMap[category] || 0) + (record.amount || 0);
+        }
+      });
+    }
     
     // Convert to array format for chart
     return Object.entries(categoryMap).map(([name, value]) => ({
@@ -90,14 +154,18 @@ const FinancialCharts: React.FC<FinancialChartsProps> = ({ summary, records }) =
     const memberMap: Record<string, number> = {};
     
     // Process real income records
-    records.forEach(record => {
-      if (record.type === 'income' && record.payments) {
-        record.payments.forEach((payment: any) => {
-          const memberName = payment.member_name || 'Unknown Member';
-          memberMap[memberName] = (memberMap[memberName] || 0) + payment.amount;
-        });
-      }
-    });
+    if (Array.isArray(records)) {
+      records.forEach(record => {
+        if (record && record.type === 'income' && Array.isArray(record.payments)) {
+          record.payments.forEach((payment: any) => {
+            if (payment) {
+              const memberName = payment.member_name || 'Unknown Member';
+              memberMap[memberName] = (memberMap[memberName] || 0) + (payment.amount || 0);
+            }
+          });
+        }
+      });
+    }
     
     // Convert to array format for chart and sort by contribution
     return Object.entries(memberMap)
@@ -154,11 +222,16 @@ const FinancialCharts: React.FC<FinancialChartsProps> = ({ summary, records }) =
                 top: 5,
                 right: 30,
                 left: 20,
-                bottom: 5,
+                bottom: 50,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
+              <XAxis
+                dataKey="month"
+                angle={-45}
+                textAnchor="end"
+                height={60}
+              />
               <YAxis 
                 tickFormatter={(value) => `Rp ${(value / 1000000).toFixed(0)}M`}
               />

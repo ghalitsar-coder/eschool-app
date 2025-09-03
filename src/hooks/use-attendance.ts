@@ -356,9 +356,7 @@ export const useAttendanceManagement = (
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const fileName = `attendance_records_${
-        new Date().toISOString().split("T")[0]
-      }.${params.format || "csv"}`;
+      const fileName = `attendance_records_${new Date().toISOString().split("T")[0]}.${params.format || "csv"}`;
       link.href = url;
       link.download = fileName;
       document.body.appendChild(link);

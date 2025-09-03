@@ -1,4 +1,4 @@
-// useMemberProfile.ts - Hooks for member profile data with TanStack Query
+// useMemberProfileData.ts - Hooks for member profile data with TanStack Query
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "./use-auth";
 import apiClient from "@/lib/api/client";
@@ -107,7 +107,7 @@ export const useExportAttendance = () => {
       link.remove();
       
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Export failed:', error);
       return { success: false, error };
     }
@@ -140,7 +140,7 @@ export const useExportKas = () => {
       link.remove();
       
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Export failed:', error);
       return { success: false, error };
     }

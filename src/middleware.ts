@@ -40,6 +40,8 @@ async function verifyToken(token: string) {
 export async function middleware(request: NextRequest) {
   // Get the pathname of the request (e.g. /, /dashboard, /login)
   const path = request.nextUrl.pathname;
+  console.log(`🚀 ~ middleware.ts:43 ~ path:`, path)
+
 
   // Define paths that require authentication
   const protectedPaths = ["/dashboard"];
@@ -64,13 +66,13 @@ export async function middleware(request: NextRequest) {
       // Check role-based access control
       if (authToken) {
         const decodedToken = await decodeToken(authToken);
-        console.log(`THIS IS  ~ decodedToken:`, decodedToken)
+        // console.log(`THIS IS  ~ decodedToken:`, decodedToken)
         if (decodedToken && decodedToken.role) {
           const userRole = decodedToken.role;
           
           // Define role-based access rules
           const roleAccessRules: Record<string, string[]> = {
-            "bendahara": ["/dashboard/kas", "/dashboard/profile"],
+            "bendahara": ["/dashboard","/dashboard/kas", "/dashboard/profile"],
             "koordinator": ["/dashboard/attendance", "/dashboard/members", "/dashboard/profile"],
             "staff": ["/dashboard/eschool", "/dashboard/profile"],
             "siswa": ["/dashboard/profile"]
@@ -82,25 +84,25 @@ export async function middleware(request: NextRequest) {
             path.startsWith(allowedPath)
           );
           
-          // Special case: staff can also access dashboard root
-          if (userRole === "staff" && path === "/dashboard") {
-            return NextResponse.redirect(new URL("/dashboard/eschool", request.url));
-          }
+          // // Special case: staff can also access dashboard root
+          // if (userRole === "staff" && path === "/dashboard") {
+          //   return NextResponse.redirect(new URL("/dashboard/eschool", request.url));
+          // }
           
-          // Special case: bendahara can also access dashboard root
-          if (userRole === "bendahara" && path === "/dashboard") {
-            return NextResponse.redirect(new URL("/dashboard/kas", request.url));
-          }
+          // // Special case: bendahara can also access dashboard root
+          // if (userRole === "bendahara" && path === "/dashboard") {
+          //   return NextResponse.redirect(new URL("/dashboard/kas", request.url));
+          // }
           
-          // Special case: koordinator can also access dashboard root
-          if (userRole === "koordinator" && path === "/dashboard") {
-            return NextResponse.redirect(new URL("/dashboard/attendance", request.url));
-          }
+          // // Special case: koordinator can also access dashboard root
+          // if (userRole === "koordinator" && path === "/dashboard") {
+          //   return NextResponse.redirect(new URL("/dashboard/attendance", request.url));
+          // }
           
-          // Special case: siswa can also access dashboard root
-          if (userRole === "siswa" && path === "/dashboard") {
-            return NextResponse.redirect(new URL("/dashboard/profile", request.url));
-          }
+          // // Special case: siswa can also access dashboard root
+          // if (userRole === "siswa" && path === "/dashboard") {
+          //   return NextResponse.redirect(new URL("/dashboard/profile", request.url));
+          // }
           
           if (!hasAccess) {
             // Redirect to appropriate dashboard based on role
