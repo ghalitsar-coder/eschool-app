@@ -1,37 +1,51 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { memberApi } from '@/lib/api/member';
+import { multiRoleMemberApi } from '@/app/dashboard/eschool/[id]/members/services/multiRoleMemberService';
 
 // Types
-interface Member {
-  id: number;
-  school_id: number;
+interface UserEschoolRole {
   user_id: number;
-  nip: string | null;
   name: string;
-  student_id: string | null;
-  date_of_birth: string | null;
-  gender: string | null;
-  address: string | null;
-  phone: string | null;
-  email: string | null;
-  position: string | null;
+  email: string;
+  student_id: string;
+  phone: string;
+  role_in_eschool: string;
+  permissions: string[];
   status: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  user?: {
-    id: number;
-    name: string;
-    email: string;
+  assigned_at: string;
+  member_details: {
+    gender: string | null;
+    address: string | null;
+    date_of_birth: string | null;
   };
-  school?: {
-    id: number;
-    name: string;
-  };
-  eschools?: Array<{
-    id: number;
-    name: string;
+  other_roles: Array<{
+    eschool_id: number;
+    eschool_name: string;
+    role: string;
   }>;
+  attendance_summary: {
+    total_sessions: number;
+    attended: number;
+    attendance_rate: number;
+  };
+}
+
+interface AvailableUser {
+  id: number;
+  name: string;
+  email: string;
+  base_role: string;
+  current_eschool_roles: Array<{
+    eschool_id: number;
+    eschool_name: string;
+    role: string;
+  }>;
+  available_roles: string[];
+  qwen_compliant: boolean;
+  can_assign_koordinator: boolean;
+}
+
+interface RoleSummary {
+  [key: string]: number;
 }
 
 interface Pagination {
@@ -45,8 +59,8 @@ interface UseMembersParams {
   page?: number;
   perPage?: number;
   search?: string;
-  sortBy?: string;
-  sortDirection?: string;
+  roleFilter?: string;
+  eschoolId?: number;
 }
 
 // Hook to fetch members
@@ -54,13 +68,24 @@ export const useMembers = (params?: UseMembersParams) => {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['members', params],
     queryFn: async () => {
-      const response = await memberApi.getMembers(params);
+      if (!params?.eschoolId) {
+        throw new Error('Eschool ID is required');
+      }
+      
+      const response = await multiRoleMemberApi.getMembers(params.eschoolId, {
+        page: params.page,
+        per_page: params.perPage,
+        search: params.search,
+        role_filter: params.roleFilter
+      });
       return response;
     },
+    enabled: !!params?.eschoolId
   });
 
   return {
     members: data?.data,
+    roleSummary: data?.role_summary,
     pagination: data?.pagination,
     isLoadingMembers: isLoading,
     membersError: error || null,
@@ -68,129 +93,15 @@ export const useMembers = (params?: UseMembersParams) => {
   };
 };
 
-// Hook to fetch schools
-interface School {
-  id: number;
-  name: string;
-}
-
-export const useSchools = () => {
-  const { data, isLoading, error, refetch } = useQuery<School[], Error>({
-    queryKey: ['schools'],
-    queryFn: async () => {
-      const response = await memberApi.getSchools();
-      return response.data;
-    },
-  });
-
-  return {
-    schools: data,
-    isLoadingSchools: isLoading,
-    schoolsError: error || null,
-    fetchSchools: refetch,
-  };
-};
-
-// Hook to create member
-interface CreateMemberParams {
-  create_new_user: boolean;
-  existing_user_id?: number;
-  new_user_name?: string;
-  new_user_email?: string;
-  new_user_password?: string;
-  nip?: string;
-  name: string;
-  student_id?: string;
-  date_of_birth?: string;
-  gender?: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-  position?: string;
-  status?: string;
-}
-
-export const useCreateMember = () => {
-  const queryClient = useQueryClient();
-
-  const { mutateAsync, isPending, error } = useMutation({
-    mutationFn: async (data: CreateMemberParams) => {
-      const response = await memberApi.createMember(data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-    },
-  });
-
-  return {
-    createMember: mutateAsync,
-    isCreating: isPending,
-    createError: error || null,
-  };
-};
-
-// Hook to update member
-interface UpdateMemberParams {
-  id: number;
-  data: Partial<CreateMemberParams>;
-}
-
-export const useUpdateMember = () => {
-  const queryClient = useQueryClient();
-
-  const { mutateAsync, isPending, error } = useMutation({
-    mutationFn: async ({ id, data }: UpdateMemberParams) => {
-      const response = await memberApi.updateMember(id, data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-    },
-  });
-
-  return {
-    updateMember: mutateAsync,
-    isUpdating: isPending,
-    updateError: error || null,
-  };
-};
-
-// Hook to delete member
-export const useDeleteMember = () => {
-  const queryClient = useQueryClient();
-
-  const { mutateAsync, isPending, error } = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await memberApi.deleteMember(id);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-    },
-  });
-
-  return {
-    deleteMember: mutateAsync,
-    isDeleting: isPending,
-    deleteError: error || null,
-  };
-};
-
-// Hook to get available users
-interface User {
-  id: number;
-  name: string;
-  email: string;
-}
-
-export const useAvailableUsers = () => {
+// Hook to fetch available users
+export const useAvailableUsers = (eschoolId: number) => {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['available-users'],
+    queryKey: ['available-users', eschoolId],
     queryFn: async () => {
-      const response = await memberApi.getAvailableUsers();
+      const response = await multiRoleMemberApi.getAvailableUsers(eschoolId);
       return response;
     },
+    enabled: !!eschoolId
   });
 
   return {
@@ -201,55 +112,88 @@ export const useAvailableUsers = () => {
   };
 };
 
-// Hook to fetch schools
-interface School {
-  id: number;
-  name: string;
+// Hook to assign role
+interface AssignRoleParams {
+  eschoolId: number;
+  user_id: number;
+  role: string;
+  member_details?: {
+    student_id?: string;
+    date_of_birth?: string;
+    gender?: string;
+    address?: string;
+    phone?: string;
+  };
 }
 
-export const useMemberSchools = (enabled: boolean = true) => {
-  const { data, isLoading, error, refetch } = useQuery<School[], Error>({
-    queryKey: ['member-schools'],
-    queryFn: async () => {
-      const response = await memberApi.getSchools();
-      return response.data;
+export const useAssignRole = () => {
+  const queryClient = useQueryClient();
+
+  const { mutateAsync, isPending, error } = useMutation({
+    mutationFn: async (data: AssignRoleParams) => {
+      const { eschoolId, ...rest } = data;
+      const response = await multiRoleMemberApi.assignRole(eschoolId, rest);
+      return response;
     },
-    enabled, // Only fetch if enabled
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['available-users', variables.eschoolId] });
+    },
   });
 
   return {
-    schools: data,
-    isLoadingSchools: isLoading,
-    schoolsError: error || null,
-    fetchSchools: refetch,
+    assignRole: mutateAsync,
+    isAssigning: isPending,
+    assignError: error || null,
   };
 };
 
-// Hook to fetch eschools
-interface Eschool {
-  id: number;
-  name: string;
-  school_id: number;
+// Hook to update role
+interface UpdateRoleParams {
+  eschoolId: number;
+  userId: number;
+  role: string;
 }
 
-export const useMemberEschools = (params?: { schoolId?: number; enabled?: boolean }) => {
-  const { schoolId, enabled = true } = params || {};
-  const { data, isLoading, error, refetch } = useQuery<Eschool[], Error>({
-    queryKey: ['member-eschools', schoolId],
-    queryFn: async () => {
-      const response = await memberApi.getEschools(schoolId);
-      return response.data;
+export const useUpdateRole = () => {
+  const queryClient = useQueryClient();
+
+  const { mutateAsync, isPending, error } = useMutation({
+    mutationFn: async (data: UpdateRoleParams) => {
+      const { eschoolId, userId, ...rest } = data;
+      const response = await multiRoleMemberApi.updateRole(eschoolId, userId, rest);
+      return response;
     },
-    enabled: enabled && !!schoolId,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+    },
   });
 
   return {
-    eschools: data,
-    isLoadingEschools: isLoading,
-    eschoolsError: error || null,
-    fetchEschools: refetch,
+    updateRole: mutateAsync,
+    isUpdating: isPending,
+    updateError: error || null,
+  };
+};
+
+// Hook to remove role
+export const useRemoveRole = () => {
+  const queryClient = useQueryClient();
+
+  const { mutateAsync, isPending, error } = useMutation({
+    mutationFn: async ({ eschoolId, userId }: { eschoolId: number; userId: number }) => {
+      const response = await multiRoleMemberApi.removeRole(eschoolId, userId);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+    },
+  });
+
+  return {
+    removeRole: mutateAsync,
+    isRemoving: isPending,
+    removeError: error || null,
   };
 };
 
@@ -260,52 +204,38 @@ interface UseMemberManagementParams extends UseMembersParams {
 
 export const useMemberManagement = (params?: UseMemberManagementParams) => {
   // Use all the individual hooks
-  const { members, pagination, isLoadingMembers, membersError, fetchMembers } = useMembers(params);
-  const { createMember, isCreating, createError } = useCreateMember();
-  const { updateMember, isUpdating, updateError } = useUpdateMember();
-  const { deleteMember, isDeleting, deleteError } = useDeleteMember();
-  const { users, isLoadingUsers, usersError, fetchUsers } = useAvailableUsers();
-  
-  // Fetch schools and eschools - but disable the query for koordinator
-  const shouldFetchSchoolData = params?.userRole === 'staff';
-  
-  // Call the hooks but they will be disabled when not needed
-  const { schools, isLoadingSchools, schoolsError, fetchSchools } = useMemberSchools(shouldFetchSchoolData);
-  const { eschools, isLoadingEschools, eschoolsError, fetchEschools } = useMemberEschools({ enabled: shouldFetchSchoolData });
+  const { members, roleSummary, pagination, isLoadingMembers, membersError, fetchMembers } = useMembers(params);
+  const { users, isLoadingUsers, usersError, fetchUsers } = useAvailableUsers(params?.eschoolId || 0);
+  const { assignRole, isAssigning, assignError } = useAssignRole();
+  const { updateRole, isUpdating, updateError } = useUpdateRole();
+  const { removeRole, isRemoving, removeError } = useRemoveRole();
 
   return {
     // Data
     members,
     users,
-    schools,
-    eschools,
+    roleSummary,
     pagination,
     
     // Loading states
     isLoadingMembers,
     isLoadingUsers,
-    isLoadingSchools,
-    isLoadingEschools,
-    isCreating,
+    isAssigning,
     isUpdating,
-    isDeleting,
+    isRemoving,
     
     // Errors
     membersError,
     usersError,
-    schoolsError,
-    eschoolsError,
-    createError,
+    assignError,
     updateError,
-    deleteError,
+    removeError,
     
     // Functions
     fetchMembers,
-    fetchSchools,
-    fetchEschools,
     fetchAvailableUsers: fetchUsers,
-    createMember,
-    updateMember,
-    deleteMember,
+    assignRole,
+    updateRole,
+    removeRole,
   };
 };

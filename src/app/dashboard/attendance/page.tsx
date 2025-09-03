@@ -76,8 +76,7 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
-  CalendarDays,
-  File,
+  File as FileIcon,
   Image,
   Check,
   X,
@@ -130,7 +129,7 @@ const attendanceSchema = z.object({
         member_id: z.string().min(1, "Member is required"),
         is_present: z.boolean(),
         notes: z.string().nullable(),
-        proof_document: z.instanceof(File).nullable().optional(),
+        proof_document: z.any().optional(), // Use z.any() for File handling
       })
     )
     .min(1, "At least one member is required"),
@@ -218,8 +217,8 @@ const AttendancePage = () => {
     },
   });
   console.log(
-    `🚀 ~ page.tsx:211 ~ attendanceForm:`,
-    attendanceForm.getValues()
+    `🚀 ~ page.tsx:211 ~ attendanceForm: ERROR`,
+    attendanceForm.formState.errors
   );
 
   const updateAttendanceForm = useForm<UpdateAttendanceFormData>({
@@ -246,6 +245,7 @@ const AttendancePage = () => {
 
       if (!user || !user.eschool_id) {
         toast("Error User tidak ditemukan");
+        return;
       }
 
       // Add basic fields
@@ -263,16 +263,19 @@ const AttendancePage = () => {
           formData.append(`members[${index}][notes]`, member.notes);
         }
 
-        // Handle file upload for absent members
-        if (!member.is_present && member.proof_document instanceof File) {
+        // Handle file upload for absent members with proper type checking
+        if (!member.is_present && member.proof_document && 
+            typeof member.proof_document === 'object' && 
+            'size' in member.proof_document && 
+            'type' in member.proof_document) {
           formData.append(
             `members[${index}][proof_document]`,
-            member.proof_document
+            member.proof_document as File
           );
         }
       });
 
-      await createAttendance(formData);
+      await createAttendance(formData as any); // Cast to any for FormData submission
       attendanceForm.reset();
       setIsCreateDialogOpen(false);
       refetchRecords();
@@ -349,7 +352,10 @@ const AttendancePage = () => {
 
   const handleEditRecord = (record: any) => {
     setSelectedRecord(record);
-    updateAttendanceForm.setValue("member_id", record.member.id.toString());
+    updateAttendanceForm.setValue(
+      "member_id",
+      record.member.user_id.toString()
+    );
     updateAttendanceForm.setValue("is_present", record.is_present);
     updateAttendanceForm.setValue("notes", record.notes || "");
     updateAttendanceForm.setValue(
@@ -636,25 +642,25 @@ const AttendancePage = () => {
                                                   {members?.map((member) => {
                                                     const isUsed =
                                                       memberIds.includes(
-                                                        String(member.id)
+                                                        String(member.user_id)
                                                       ) &&
-                                                      String(member.id) !==
+                                                      String(member.user_id) !==
                                                         currentMemberId;
 
                                                     return (
                                                       <SelectItem
-                                                        key={member.id}
+                                                        key={member.user_id}
                                                         value={String(
-                                                          member.id
+                                                          member.user_id
                                                         )}
                                                         disabled={isUsed}
                                                       >
                                                         {member.name}
-                                                        {member.student_id
+                                                        {member.student_id &&
+                                                        member.student_id !==
+                                                          "N/A"
                                                           ? ` - ${member.student_id}`
-                                                          : ` (ID: ${member.id})`}
-                                                        {member.email &&
-                                                          ` - ${member.email}`}
+                                                          : ` (ID: ${member.user_id})`}
                                                       </SelectItem>
                                                     );
                                                   })}
@@ -1040,9 +1046,12 @@ const AttendancePage = () => {
                               {record.member.name}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {record.member.student_id
+                              {record.member.student_id &&
+                              record.member.student_id !== "N/A"
                                 ? record.member.student_id
-                                : `ID: ${record.member.id}`}
+                                : `ID: ${record.member.user_id}`}
+                              {record.member.role_in_eschool &&
+                                ` [${record.member.role_in_eschool}]`}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1061,15 +1070,15 @@ const AttendancePage = () => {
                           </TableCell>
 
                           <TableCell>
-                            {record.proof_document ? (
+                            {record.proof_document_path ? (
                               <a
-                                href={record.proof_document.url}
+                                href={`http://localhost:8000/storage/${record.proof_document_path}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
                               >
                                 <ExternalLink className="h-4 w-4" />
-                                {record.proof_document.name}
+                                Document
                               </a>
                             ) : (
                               "-"
@@ -1464,11 +1473,14 @@ const AttendancePage = () => {
                 <Label>Member</Label>
                 <p className="text-gray-600">{selectedRecord.member.name}</p>
                 <p className="text-sm text-gray-500">
-                  {selectedRecord.member.student_id
+                  {selectedRecord.member.student_id &&
+                  selectedRecord.member.student_id !== "N/A"
                     ? `ID: ${selectedRecord.member.student_id}`
-                    : `Member ID: ${selectedRecord.member.id}`}
+                    : `Member ID: ${selectedRecord.member.user_id}`}
                   {selectedRecord.member.email &&
                     ` | ${selectedRecord.member.email}`}
+                  {selectedRecord.member.role_in_eschool &&
+                    ` [${selectedRecord.member.role_in_eschool}]`}
                 </p>
               </div>
               <div>
@@ -1567,12 +1579,17 @@ const AttendancePage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {members?.map((member) => (
-                      <SelectItem key={member.id} value={String(member.id)}>
+                      <SelectItem
+                        key={member.user_id}
+                        value={String(member.user_id)}
+                      >
                         {member.name}
-                        {member.student_id
+                        {member.student_id && member.student_id !== "N/A"
                           ? ` - ${member.student_id}`
-                          : ` (ID: ${member.id})`}
+                          : ` (ID: ${member.user_id})`}
                         {member.email && ` - ${member.email}`}
+                        {member.role_in_eschool &&
+                          ` [${member.role_in_eschool}]`}
                       </SelectItem>
                     ))}
                   </SelectContent>

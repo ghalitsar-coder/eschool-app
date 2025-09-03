@@ -3,8 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { fetchEschoolMembers, addMemberToEschool, removeMemberFromEschool } from '@/app/dashboard/eschool/[id]/members/services/memberService'
-import { Member } from '@/app/dashboard/eschool/types'
+import { multiRoleMemberApi } from '@/app/dashboard/eschool/[id]/members/services/multiRoleMemberService'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -12,11 +11,55 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Search, Plus, Trash2, ArrowLeft, User } from 'lucide-react'
 import { toast } from 'sonner'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
+
+// Types
+interface UserEschoolRole {
+  user_id: number;
+  name: string;
+  email: string;
+  student_id: string;
+  phone: string;
+  role_in_eschool: string;
+  permissions: string[];
+  status: string;
+  assigned_at: string;
+  member_details: {
+    gender: string | null;
+    address: string | null;
+    date_of_birth: string | null;
+  };
+  other_roles: Array<{
+    eschool_id: number;
+    eschool_name: string;
+    role: string;
+  }>;
+  attendance_summary: {
+    total_sessions: number;
+    attended: number;
+    attendance_rate: number;
+  };
+}
+
+interface AvailableUser {
+  id: number;
+  name: string;
+  email: string;
+  base_role: string;
+  current_eschool_roles: Array<{
+    eschool_id: number;
+    eschool_name: string;
+    role: string;
+  }>;
+  available_roles: string[];
+  qwen_compliant: boolean;
+  can_assign_koordinator: boolean;
+}
 
 export default function EschoolMemberManagementPage() {
   const params = useParams()
@@ -24,80 +67,112 @@ export default function EschoolMemberManagementPage() {
   const eschoolId = Array.isArray(params.id) ? parseInt(params.id[0]) : parseInt(params.id)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false)
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null)
+  const [selectedMember, setSelectedMember] = useState<UserEschoolRole | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [memberId, setMemberId] = useState('')
+  const [roleFilter, setRoleFilter] = useState('all')
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [selectedRole, setSelectedRole] = useState('member')
+  const [studentId, setStudentId] = useState('')
   const queryClient = useQueryClient()
 
   // Fetch members
-  const { data: members, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['eschool-members', eschoolId],
-    queryFn: () => fetchEschoolMembers(eschoolId),
+  const { data: membersResponse, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['eschool-members', eschoolId, roleFilter],
+    queryFn: () => multiRoleMemberApi.getMembers(eschoolId, { 
+      page: 1, 
+      per_page: 100, // Get all for now, can be paginated later
+      search: searchTerm,
+      role_filter: roleFilter
+    }),
     enabled: !isNaN(eschoolId)
   })
 
-  // Add member mutation
-  const addMemberMutation = useMutation({
-    mutationFn: addMemberToEschool,
+  // Fetch available users
+  const { data: availableUsersResponse } = useQuery({
+    queryKey: ['available-users', eschoolId],
+    queryFn: () => multiRoleMemberApi.getAvailableUsers(eschoolId),
+    enabled: !isNaN(eschoolId) && isAddDialogOpen
+  })
+
+  // Assign role mutation
+  const assignRoleMutation = useMutation({
+    mutationFn: (data: { user_id: number; role: string; member_details?: { student_id: string } }) => 
+      multiRoleMemberApi.assignRole(eschoolId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['eschool-members', eschoolId] })
+      queryClient.invalidateQueries({ queryKey: ['available-users', eschoolId] })
       setIsAddDialogOpen(false)
-      setMemberId('')
-      toast.success('Member added successfully')
+      setSelectedUserId(null)
+      setSelectedRole('member')
+      setStudentId('')
+      toast.success('Role assigned successfully')
     },
     onError: (error: any) => {
-      toast.error('Failed to add member', {
+      toast.error('Failed to assign role', {
         description: error?.message || 'An unexpected error occurred',
       })
     },
   })
 
-  // Remove member mutation
-  const removeMemberMutation = useMutation({
-    mutationFn: removeMemberFromEschool,
+  // Remove role mutation
+  const removeRoleMutation = useMutation({
+    mutationFn: (userId: number) => multiRoleMemberApi.removeRole(eschoolId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['eschool-members', eschoolId] })
+      toast.success('Role removed successfully')
       setIsRemoveDialogOpen(false)
-      toast.success('Member removed successfully')
     },
     onError: (error: any) => {
-      toast.error('Failed to remove member', {
+      toast.error('Failed to remove role', {
         description: error?.message || 'An unexpected error occurred',
       })
     },
   })
 
-  const handleAddMember = () => {
-    if (!memberId) {
-      toast.error('Member ID is required')
+  const handleAssignRole = () => {
+    if (!selectedUserId) {
+      toast.error('Please select a user')
       return
     }
     
-    addMemberMutation.mutate({ eschoolId, memberId: parseInt(memberId) })
+    const data: any = {
+      user_id: selectedUserId,
+      role: selectedRole,
+    }
+    
+    // Add member details if role is member or bendahara
+    if (selectedRole !== 'koordinator' && studentId) {
+      data.member_details = {
+        student_id: studentId
+      }
+    }
+    
+    assignRoleMutation.mutate(data)
   }
 
-  const handleRemoveMember = (member: Member) => {
+  const handleRemoveRole = (member: UserEschoolRole) => {
     setSelectedMember(member)
     setIsRemoveDialogOpen(true)
   }
 
-  const confirmRemoveMember = () => {
+  const confirmRemoveRole = () => {
     if (!selectedMember) return
-    removeMemberMutation.mutate({ eschoolId, memberId: selectedMember.id })
+    removeRoleMutation.mutate(selectedMember.user_id)
   }
 
   const filteredMembers = useMemo(() => {
-    if (!members) return []
+    if (!membersResponse?.data) return []
     
-    return members.filter((member) => {
-      const name = member.user?.name || member.name
+    return membersResponse.data.filter((member) => {
       return (
-        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         member.student_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        ""
+        member.email.toLowerCase().includes(searchTerm.toLowerCase())
       )
     })
-  }, [members, searchTerm])
+  }, [membersResponse, searchTerm])
+
+  const availableUsers = availableUsersResponse?.data || []
 
   if (isNaN(eschoolId)) {
     return (
@@ -148,34 +223,71 @@ export default function EschoolMemberManagementPage() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Member
+                Assign Role
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Add Member</DialogTitle>
+                <DialogTitle>Assign Role</DialogTitle>
                 <DialogDescription>
-                  Add a new member to this eschool by entering their member ID
+                  Assign a role to a user in this eschool
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="memberId">Member ID</Label>
-                  <Input
-                    id="memberId"
-                    value={memberId}
-                    onChange={(e) => setMemberId(e.target.value)}
-                    placeholder="Enter member ID"
-                    type="number"
-                  />
+                  <Label htmlFor="user">User</Label>
+                  <Select 
+                    value={selectedUserId?.toString() || ''} 
+                    onValueChange={(value) => setSelectedUserId(parseInt(value))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a user" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableUsers.map((user) => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          {user.name} ({user.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role</Label>
+                  <Select 
+                    value={selectedRole} 
+                    onValueChange={setSelectedRole}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Member</SelectItem>
+                      <SelectItem value="bendahara">Bendahara</SelectItem>
+                      <SelectItem value="koordinator">Koordinator</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {(selectedRole === 'member' || selectedRole === 'bendahara') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="studentId">Student ID</Label>
+                    <Input
+                      id="studentId"
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value)}
+                      placeholder="Enter student ID"
+                    />
+                  </div>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleAddMember} disabled={addMemberMutation.isPending}>
-                  {addMemberMutation.isPending ? "Adding..." : "Add Member"}
+                <Button onClick={handleAssignRole} disabled={assignRoleMutation.isPending}>
+                  {assignRoleMutation.isPending ? "Assigning..." : "Assign Role"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -190,9 +302,20 @@ export default function EschoolMemberManagementPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Members</CardTitle>
-                <CardDescription>Members enrolled in this eschool</CardDescription>
+                <CardDescription>Members and roles in this eschool</CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="bendahara">Bendahara</SelectItem>
+                    <SelectItem value="koordinator">Koordinator</SelectItem>
+                  </SelectContent>
+                </Select>
                 <div className="relative">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -216,43 +339,60 @@ export default function EschoolMemberManagementPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead>User</TableHead>
                     <TableHead>Student ID</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Attendance Rate</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredMembers.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        {searchTerm
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                        {searchTerm || roleFilter !== 'all'
                           ? "No members found matching your search."
-                          : "No members enrolled yet."}
+                          : "No members assigned yet."}
                       </TableCell>
                     </TableRow>
                   ) : (
                     filteredMembers.map((member) => (
-                      <TableRow key={member.id}>
+                      <TableRow key={member.user_id}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <div className="bg-blue-100 p-2 rounded-lg">
                               <User className="h-4 w-4 text-blue-600" />
                             </div>
-                            {member.user?.name || member.name}
+                            <div>
+                              <div>{member.name}</div>
+                              <div className="text-sm text-muted-foreground">{member.email}</div>
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>{member.student_id}</TableCell>
                         <TableCell>
-                          <Badge variant={member.is_active ? "default" : "secondary"}>
-                            {member.is_active ? "Active" : "Inactive"}
+                          <Badge 
+                            variant={
+                              member.role_in_eschool === 'koordinator' ? 'default' :
+                              member.role_in_eschool === 'bendahara' ? 'secondary' : 'outline'
+                            }
+                          >
+                            {member.role_in_eschool}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span>{member.attendance_summary.attendance_rate}%</span>
+                            <span className="text-xs text-muted-foreground">
+                              ({member.attendance_summary.attended}/{member.attendance_summary.total_sessions})
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleRemoveMember(member)}
+                            onClick={() => handleRemoveRole(member)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -271,12 +411,13 @@ export default function EschoolMemberManagementPage() {
       <Dialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Removal</DialogTitle>
+            <DialogTitle>Confirm Role Removal</DialogTitle>
             <DialogDescription>
-              Are you sure you want to remove this member from the eschool? This action cannot be undone.
+              Are you sure you want to remove this role from the user? This action cannot be undone.
               {selectedMember && (
                 <div className="mt-2 p-2 bg-red-50 rounded">
-                  <span className="font-medium">Member:</span> {selectedMember.user?.name || selectedMember.name}
+                  <div><span className="font-medium">User:</span> {selectedMember.name}</div>
+                  <div><span className="font-medium">Role:</span> {selectedMember.role_in_eschool}</div>
                 </div>
               )}
             </DialogDescription>
@@ -290,10 +431,10 @@ export default function EschoolMemberManagementPage() {
             </Button>
             <Button 
               variant="destructive" 
-              onClick={confirmRemoveMember} 
-              disabled={removeMemberMutation.isPending}
+              onClick={confirmRemoveRole} 
+              disabled={removeRoleMutation.isPending}
             >
-              {removeMemberMutation.isPending ? "Removing..." : "Remove"}
+              {removeRoleMutation.isPending ? "Removing..." : "Remove Role"}
             </Button>
           </DialogFooter>
         </DialogContent>

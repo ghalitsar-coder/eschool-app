@@ -1,3 +1,6 @@
+// This file is deprecated. Please use the multi-role member API functions instead.
+// Keeping it for backward compatibility, but it should not be used in new code.
+
 import apiClient from './client';
 
 // Types
@@ -66,7 +69,7 @@ interface ApiResponse<T> {
   pagination?: Pagination;
 }
 
-// API functions
+// API functions (deprecated - use multi-role member API instead)
 export const memberApi = {
   // Get members
   // Note: The backend automatically filters members by school for coordinators and staff

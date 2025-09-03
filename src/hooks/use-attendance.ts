@@ -6,9 +6,9 @@ import {
   AttendanceFormData,
   UpdateAttendanceParams,
   AttendanceAnalytics,
+  AttendanceMember,
 } from "@/types/api";
 import { useAuth } from "./use-auth";
-import memberApi from "@/lib/api/member";
 
 // Types for our hooks
 interface UseAttendanceParams {
@@ -60,7 +60,7 @@ interface UseAnalyticsReturn {
 }
 
 interface UseMembersReturn {
-  members: any[] | undefined;
+  members: AttendanceMember[] | undefined;
   isLoadingMembers: boolean;
   membersError: Error | null;
 }
@@ -72,7 +72,7 @@ interface UseCreateAttendanceReturn {
 }
 
 interface UseUpdateAttendanceReturn {
-  updateAttendance: (params: { id: number; data: any }) => Promise<void>;
+  updateAttendance: (params: { id: number; data: Partial<AttendanceFormData> }) => Promise<void>;
   isUpdating: boolean;
   updateError: Error | null;
 }
@@ -165,8 +165,8 @@ export const useAttendanceAnalytics = (
         eschoolId: user.eschool_id,
         period: params?.period || "week",
       });
-      // Extract data from response
-      return response.data;
+      // Response already is AttendanceAnalytics, no need to extract data
+      return response;
     },
     enabled: !!user?.eschool_id,
   });
@@ -179,21 +179,21 @@ export const useAttendanceAnalytics = (
   };
 };
 
-// Hook to fetch members for attendance
+// Hook to fetch members for attendance using new multi-role API
 export const useAttendanceMembers = (): UseMembersReturn => {
   const { user } = useAuth();
   console.log(`THIS IS  ~ user:`, user);
 
-  const { data, isLoading, error } = useQuery<any[], Error>({
+  const { data, isLoading, error } = useQuery<AttendanceMember[], Error>({
     queryKey: ["attendance-members", user?.eschool_id],
     queryFn: async () => {
       if (!user?.eschool_id) {
         throw new Error("No eschool ID found");
       }
-      // Use the member API to get members by eschool ID
-      const response = await memberApi.getMembersByEschool(user.eschool_id);
-      console.log(`THIS IS  ~ response:`, response.data.slice(0, 3));
-      return response.data || [];
+      // Use the new multi-role attendance members API
+      const response = await attendanceApi.getAttendanceMembers(user.eschool_id);
+      console.log(`THIS IS  ~ response:`, response.slice(0, 3));
+      return response || [];
     },
     enabled: !!user?.eschool_id,
   });
@@ -212,7 +212,10 @@ export const useCreateAttendance = (): UseCreateAttendanceReturn => {
 
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: async (data: FormData | AttendanceFormData) => {
-      const response = await attendanceApi.recordAttendance(data);
+      if (!user?.eschool_id) {
+        throw new Error("No eschool ID found");
+      }
+      const response = await attendanceApi.recordAttendance(user.eschool_id, data);
       return response.data;
     },
     onSuccess: () => {
@@ -222,8 +225,12 @@ export const useCreateAttendance = (): UseCreateAttendanceReturn => {
     },
   });
 
+  const createAttendance = async (data: AttendanceFormData): Promise<void> => {
+    await mutateAsync(data);
+  };
+
   return {
-    createAttendance: mutateAsync,
+    createAttendance,
     isCreating: isPending,
     createError: error || null,
   };
@@ -235,14 +242,11 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending, error } = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: any }) => {
+    mutationFn: async ({ id, data }: { id: number; data: Partial<AttendanceFormData> }) => {
       if (!user?.eschool_id) {
         throw new Error("No eschool ID found");
       }
-      const response = await attendanceApi.updateAttendance(id, {
-        eschool_id: user.eschool_id,
-        ...data,
-      });
+      const response = await attendanceApi.updateAttendance(user.eschool_id, id, data);
       return response;
     },
     onSuccess: () => {
@@ -259,8 +263,12 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
     },
   });
 
+  const updateAttendance = async (params: { id: number; data: Partial<AttendanceFormData> }): Promise<void> => {
+    await mutateAsync(params);
+  };
+
   return {
-    updateAttendance: mutateAsync,
+    updateAttendance,
     isUpdating: isPending,
     updateError: error || null,
   };
@@ -276,7 +284,7 @@ export const useDeleteAttendance = (): UseDeleteAttendanceReturn => {
       if (!user?.eschool_id) {
         throw new Error("No eschool ID found");
       }
-      const response = await attendanceApi.deleteAttendance(id);
+      const response = await attendanceApi.deleteAttendance(user.eschool_id, id);
       return response;
     },
     onSuccess: () => {
@@ -293,8 +301,12 @@ export const useDeleteAttendance = (): UseDeleteAttendanceReturn => {
     },
   });
 
+  const deleteAttendance = async (id: number): Promise<void> => {
+    await mutateAsync(id);
+  };
+
   return {
-    deleteAttendance: mutateAsync,
+    deleteAttendance,
     isDeleting: isPending,
     deleteError: error || null,
   };
@@ -355,7 +367,7 @@ export const useAttendanceManagement = (
       window.URL.revokeObjectURL(url);
 
       return blob;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Export error:", error);
       throw error;
     }
