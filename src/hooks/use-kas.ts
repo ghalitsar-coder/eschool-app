@@ -55,6 +55,8 @@ export const useKasSummary = () => {
 
 export const useMembers = () => {
   const { user, isAuthenticated } = useAuth();
+  console.log(`🚀 ~ use-kas.ts:58 ~ user:`, user)
+
 
   return useQuery({
     queryKey: kasQueryKeys.members,
@@ -63,7 +65,7 @@ export const useMembers = () => {
         throw new Error("User is not available");
       }
       // For kas purposes, we need members from the user's eschool
-      const response = await memberApi.getMembersByEschool(user.eschool_id || 1);
+      const response = await memberApi.getMembersByEschool(user.eschool_id);
       return response;
     },
     enabled: true ,
