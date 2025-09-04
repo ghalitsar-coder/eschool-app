@@ -264,10 +264,13 @@ const AttendancePage = () => {
         }
 
         // Handle file upload for absent members with proper type checking
-        if (!member.is_present && member.proof_document && 
-            typeof member.proof_document === 'object' && 
-            'size' in member.proof_document && 
-            'type' in member.proof_document) {
+        if (
+          !member.is_present &&
+          member.proof_document &&
+          typeof member.proof_document === "object" &&
+          "size" in member.proof_document &&
+          "type" in member.proof_document
+        ) {
           formData.append(
             `members[${index}][proof_document]`,
             member.proof_document as File

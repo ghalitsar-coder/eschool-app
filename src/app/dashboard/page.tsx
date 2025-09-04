@@ -7,6 +7,7 @@ import BendaharaDashboard from "./components/BendaharaDashboard";
 import KoordinatorDashboard from "./components/KoordinatorDashboard";
 import StaffDashboard from "./components/StaffDashboard";
 import SiswaDashboard from "./components/SiswaDashboard";
+import StudentDashboardProfessional from "./components/StudentDashboardProfessional";
 import {
   Card,
   CardContent,
@@ -73,7 +74,8 @@ export default function Page() {
     case "staff":
       return <StaffDashboard />;
     case "siswa":
-      return <SiswaDashboard />;
+      // Use the professional dashboard for students with multiple roles
+      return <StudentDashboardProfessional />;
     default:
       return (
         <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">

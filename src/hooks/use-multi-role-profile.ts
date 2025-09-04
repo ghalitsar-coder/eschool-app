@@ -63,7 +63,7 @@ interface RecentActivity {
   role_context: string;
 }
 
-interface MultiRoleProfileData {
+export interface MultiRoleProfileData {
   user: User;
   eschool_roles: EschoolRole[];
   overall_summary: OverallSummary;
@@ -88,10 +88,24 @@ export const useMultiRoleProfile = () => {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['multi-role-profile'],
     queryFn: async () => {
-      const response = await multiRoleProfileApi.getProfile();
-      return response.data;
+      try {
+        const response = await multiRoleProfileApi.getProfile();
+        console.log(`🚀 ~ use-multi-role-profile.ts:85 ~ response:`, response);
+        
+        // Return the data from the response
+        if (response && response.data) {
+          return response.data;
+        }
+        
+        // This should never happen with our updated API client, but just in case
+        throw new Error("No data received from API");
+      } catch (err) {
+        console.error("Error in query function:", err);
+        throw err;
+      }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1, // Retry once on failure
   });
 
   return {

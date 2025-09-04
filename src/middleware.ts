@@ -72,10 +72,10 @@ export async function middleware(request: NextRequest) {
           
           // Define role-based access rules
           const roleAccessRules: Record<string, string[]> = {
-            "bendahara": ["/dashboard","/dashboard/kas", "/dashboard/profile"],
-            "koordinator": ["/dashboard/attendance", "/dashboard/members", "/dashboard/profile"],
-            "staff": ["/dashboard/eschool", "/dashboard/profile"],
-            "siswa": ["/dashboard/profile"]
+            "bendahara": ["/dashboard","/dashboard","/dashboard/kas", "/dashboard/profile"],
+            "koordinator": ["/dashboard","/dashboard/attendance", "/dashboard/members", "/dashboard/profile"],
+            "staff": ["/dashboard","/dashboard/eschool", "/dashboard/profile"],
+            "siswa": ["/dashboard","/dashboard/profile"]
           };
           
           // Check if user has access to this path
