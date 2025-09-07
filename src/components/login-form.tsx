@@ -5,12 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { useAuth, useLogin } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { toast } from "sonner";
-import apiClient from "@/lib/api/client";
-import axios from "axios";
 
 export function LoginForm({
   className,

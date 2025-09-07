@@ -1,11 +1,28 @@
 // User interfaces
+export interface UserRole {
+  id: number;
+  role: "supervisor" | "coordinator" | "treasurer" | "member";
+  eschool_id: number;
+  eschool_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface User {
   id: number;
   name: string;
   email: string;
-  role: "siswa" | "bendahara" | "koordinator" | "staff";
-  eschool_id: number;
-  school_id?: number;
+  profile: {
+    id: number;
+    name: string;
+    date_of_birth: string;
+    gender: string;
+    address: string | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
+  };
+  roles: UserRole[];
 }
 
 // Auth-related interfaces
