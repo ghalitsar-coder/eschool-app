@@ -25,7 +25,7 @@ export interface MembersResponse {
   eschool: {
     id: number;
     name: string;
-    monthly_kas_amount: number;
+    monthly_fee_amount: number;
   };
   members: {
     id: number;
@@ -68,7 +68,20 @@ export const kasApi = {
     data: IncomeFormData
   ): Promise<ApiResponse<{ kas_record_id: number }>> => {
     try {
-      const response = await apiClient.post("/kas/income", data);
+      // Transform frontend data to match backend expectations
+      const transformedData = {
+        eschool_id: 1, // This should come from the user's eschool context
+        description: data.description,
+        date: data.date,
+        payments: data.payments.map(payment => ({
+          member_id: parseInt(payment.member_id),
+          amount: parseFloat(payment.amount),
+          month: parseInt(payment.month),
+          year: parseInt(payment.year)
+        }))
+      };
+
+      const response = await apiClient.post("/kas/income", transformedData);
       return response.data;
     } catch (error) {
       console.error("Error adding income:", error);
@@ -81,7 +94,11 @@ export const kasApi = {
     data: KasExpenseData
   ): Promise<ApiResponse<{ kas_record_id: number }>> => {
     try {
-      const response = await apiClient.post("/kas/expense", data);
+      const response = await apiClient.post("/kas/records", {
+        ...data,
+        eschool_id: 1, // This should come from the user's eschool context
+        category: data.category || "expense"
+      });
       return response.data;
     } catch (error) {
       console.error("Error adding expense:", error);
@@ -109,27 +126,42 @@ export const kasApi = {
     month?: number;
     year?: number;
     page?: number;
-  }): Promise<KasRecordsResponse> => {
+    eschoolId:number;
+  }): Promise<any> => {
     
+
+    // alert("helo")
+    const {eschoolId,...payload} = params
     try {
-      const response = await apiClient.get("/kas/records", { params });
-      
+      // For now, we'll use a fixed eschool_id. In real implementation, this should come from user context.
+      const response = await apiClient.get(`/kas/records/${eschoolId}`, { params:payload });
 
-      // Convert string amounts to numbers for consistency
-      const data = response.data;
-      if (data.data && Array.isArray(data.data)) {
-        data.data = data.data.map((record: KasRecord) => ({
-          ...record,
-          amount: Number(record.amount) || 0,
-          payments:
-            record.payments?.map((payment: KasPayment) => ({
-              ...payment,
-              amount: Number(payment.amount) || 0,
-            })) || [],
-        }));
-      }
+      // Transform backend response to match frontend expectations
+      const transformedData = {
+        data: response.data.data.kas_records.map((record: any) => ({
+          id: record.id,
+          type: parseFloat(record.amount.toString()) > 0 ? "income" : "expense",
+          amount: Math.abs(parseFloat(record.amount.toString())),
+          description: record.description,
+          category: record.category,
+          date: record.date,
+          created_at: record.created_at,
+          payments: record.kas_payments ? record.kas_payments.map((payment: any) => ({
+            member_name: payment.member?.user?.profile?.name || "Unknown Member",
+            amount: parseFloat(payment.amount.toString()),
+            month: parseInt(payment.month),
+            year: parseInt(payment.year)
+          })) : []
+        })),
+        pagination: {
+          current_page: 1,
+          last_page: 1,
+          per_page: response.data.data.kas_records.length,
+          total: response.data.data.kas_records.length
+        }
+      };
 
-      return data;
+      return transformedData;
     } catch (error) {
       console.error("Error fetching kas records:", error);
       throw error;
@@ -137,22 +169,33 @@ export const kasApi = {
   },
 
   // Get kas summary for dashboard
-  getSummary: async (): Promise<KasSummary> => {
-    
+  getSummary: async (): Promise<any> => {
     try {
-      const response = await apiClient.get("/kas/summary");
-      
+      // For now, we'll use a fixed eschool_id. In real implementation, this should come from user context.
+      const response = await apiClient.get(`/kas/payments/summary/1`);
 
-      // Convert string numbers to actual numbers for consistency
-      const data = response.data;
-      if (data.summary) {
-        data.summary.total_income = Number(data.summary.total_income) || 0;
-        data.summary.total_expense = Number(data.summary.total_expense) || 0;
-        data.summary.balance = Number(data.summary.balance) || 0;
-        data.summary.total_members = Number(data.summary.total_members) || 0;
-      }
+      // Transform backend response to match frontend expectations
+      const transformedData = {
+        eschool: {
+          name: response.data.data.eschool.name,
+          monthly_kas_amount: parseFloat(response.data.data.eschool.monthly_fee_amount.toString())
+        },
+        summary: {
+          total_income: parseFloat(response.data.data.summary.total_collected.toString()),
+          total_expense: 0, // We need to get this from actual expense records
+          balance: parseFloat(response.data.data.summary.total_collected.toString()), // Income - Expense
+          total_members: parseInt(response.data.data.summary.total_members.toString())
+        },
+        current_month: {
+          month: new Date().getMonth() + 1,
+          year: new Date().getFullYear(),
+          paid_count: parseInt(response.data.data.summary.paid_members.toString()),
+          unpaid_count: parseInt(response.data.data.summary.unpaid_members.toString()),
+          payment_percentage: parseFloat(response.data.data.summary.payment_percentage.toString())
+        }
+      };
 
-      return data;
+      return transformedData;
     } catch (error) {
       console.error("Error fetching kas summary:", error);
       throw error;

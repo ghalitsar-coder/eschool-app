@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useLogin } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ export function LoginForm({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const {loginMutation} = useAuth()
+  const login = useLogin()
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,7 +31,7 @@ export function LoginForm({
 
     try {
      
-      await loginMutation.mutateAsync(formData);
+      await login.mutateAsync(formData);
       const redirectUrl = searchParams.get("redirect") || "/dashboard";
       router.push(redirectUrl);
     } catch (error) {

@@ -207,7 +207,7 @@ const AttendancePage = () => {
     refetchStatistics,
     refetchAnalytics,
   } = useAttendanceManagement({ period: analyticsPeriod }, filterParams);
-  console.log(`🚀 ~ page.tsx:156 ~ members:`, members);
+  
 
   const attendanceForm = useForm<AttendanceFormData>({
     resolver: zodResolver(attendanceSchema),
@@ -216,7 +216,7 @@ const AttendancePage = () => {
       members: [{ member_id: "", is_present: true, notes: null }],
     },
   });
-  console.log(
+  
     `🚀 ~ page.tsx:211 ~ attendanceForm: ERROR`,
     attendanceForm.formState.errors
   );
@@ -1037,7 +1037,7 @@ const AttendancePage = () => {
                     </TableRow>
                   ) : (
                     records?.map((record) => {
-                      console.log(`🚀 ~ page.tsx:1028 ~ record:`, record);
+                      
 
                       return (
                         <TableRow key={record.id}>

@@ -54,24 +54,7 @@ const IncomeDialog = ({ showIncomeDialog, setShowIncomeDialog }: IncomeDialogPro
     name: 'payments',
   });
 
-  useEffect(() => {
-    if (role !== 'bendahara') {
-      setShowIncomeDialog(false);
-      return;
-    }
-    const fetchMembers = async () => {
-      try {
-        setIsLoadingMembers(true);
-        const response = await apiClient.get('/members');
-        setMembers(response.data);
-      } catch (err) {
-        incomeForm.setError('root', { message: 'Gagal memuat data member' });
-      } finally {
-        setIsLoadingMembers(false);
-      }
-    };
-    fetchMembers();
-  }, [role, setShowIncomeDialog]);
+ 
 
   const handleAddIncome = async (data: IncomeForm) => {
     setIsAddingIncome(true);

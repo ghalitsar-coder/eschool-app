@@ -26,6 +26,7 @@ apiClient.interceptors.request.use(
     // The browser will automatically send the cookies with each request
     // Just log that we're making a request
   
+
     return config;
   },
   (error) => {

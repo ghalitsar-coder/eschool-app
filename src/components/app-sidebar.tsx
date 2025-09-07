@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   IconCamera,
   IconChartBar,
@@ -17,12 +17,12 @@ import {
   IconSearch,
   IconSettings,
   IconUsers,
-} from "@tabler/icons-react"
+} from "@tabler/icons-react";
 
-import { NavDocuments } from "@/components/nav-documents"
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
+import { NavDocuments } from "@/components/nav-documents";
+import { NavMain } from "@/components/nav-main";
+import { NavSecondary } from "@/components/nav-secondary";
+import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
@@ -31,8 +31,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
-import { useAuth } from "@/hooks/use-auth"
+} from "@/components/ui/sidebar";
+import { useAuth } from "@/hooks/use-auth";
 
 const data = {
   navClouds: [
@@ -117,12 +117,11 @@ const data = {
       icon: IconFileWord,
     },
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useAuth()
-  console.log(`THIS IS  ~ user:`, user)
-  
+  const { user, isBendahara, isKoordinator, isStaff, isMember } = useAuth();
+
   // Generate navigation items based on user role
   const getNavItems = () => {
     const baseItems = [
@@ -136,9 +135,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/dashboard/profile",
         icon: IconUsers,
       },
-    ]
-    
-    if (user?.role === "bendahara") {
+    ];
+
+    if (isBendahara) {
       return [
         ...baseItems,
         {
@@ -146,10 +145,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           url: "/dashboard/kas",
           icon: IconListDetails,
         },
-      ]
+      ];
     }
-    
-    if (user?.role === "koordinator") {
+
+    if (isKoordinator) {
       return [
         ...baseItems,
         {
@@ -162,10 +161,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           url: "/dashboard/members",
           icon: IconFolder,
         },
-      ]
+      ];
     }
-    
-    if (user?.role === "staff") {
+
+    if (isStaff) {
       return [
         ...baseItems,
         {
@@ -173,13 +172,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           url: "/dashboard/eschool",
           icon: IconUsers,
         },
-      ]
+      ];
     }
-    
-    if (user?.role === "siswa") {
-      return baseItems
+
+    if (isMember) {
+      return baseItems;
     }
-    
+
     // Default navigation
     return [
       {
@@ -187,10 +186,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/dashboard",
         icon: IconDashboard,
       },
-    ]
-  }
-  
-  const navItems = getNavItems()
+    ];
+  };
+
+  const navItems = getNavItems();
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -218,5 +217,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavUser />
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

@@ -17,7 +17,7 @@ export const attendanceApi = {
   ): Promise<ApiResponse<AttendanceRecord>> => {
     try {
       // Log the data being sent for debugging
-      console.log("Sending attendance data:", data);
+      
       
       let requestData = data;
       let headers = {};
@@ -28,7 +28,7 @@ export const attendanceApi = {
         headers = {
           'Content-Type': 'multipart/form-data',
         };
-        console.log("Sending FormData with is_present as 1/0:", data);
+        
       } else {
         const formattedData: AttendanceFormData = {
           ...data,
@@ -43,7 +43,7 @@ export const attendanceApi = {
         headers = {
           'Content-Type': 'application/json',
         };
-        console.log("Formatted attendance data:", formattedData);
+        
       }
       
       const response = await apiClient.post<ApiResponse<AttendanceRecord>>(
@@ -177,7 +177,7 @@ export const attendanceApi = {
     try {
       // Use the new multi-role members list endpoint
       const response = await apiClient.get(`/eschool/${eschoolId}/members/list`);
-      console.log(`🚀 ~ attendance.ts:71 ~ response:`, response)
+      
 
       // Return the data array from the response
       if (response.data && response.data.success && Array.isArray(response.data.data)) {

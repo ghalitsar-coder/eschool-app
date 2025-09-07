@@ -2,7 +2,7 @@
 
 import { useKasManagement } from "@/hooks/use-kas";
 import apiClient from "@/lib/api/client";
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useState } from "react";
 import {
   useForm,
   useFieldArray,
@@ -14,28 +14,10 @@ import * as z from "zod";
 import {
   Plus,
   TrendingUp,
-  TrendingDown,
-  Wallet,
-  Calendar as CalendarIcon,
-  AlertCircle,
-  Users,
-  Filter,
-  Download,
-  Search,
   Trash2,
   ChevronDownIcon,
-  Eye,
 } from "lucide-react";
-import FinancialCharts from "./components/FinancialCharts";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -61,7 +43,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Form,
   FormControl,
@@ -70,7 +51,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Popover,
   PopoverContent,
@@ -79,15 +59,20 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import {  IncomeFormData, incomeSchema } from "@/types/page/kas";
+import {
+  IncomeFormData,
+  incomeSchema,
+} from "@/types/page/kas";
 
 const DialogKasIncome = (props) => {
-  const {  } = props;
+  const {} = props;
   const [showIncomeDialog, setShowIncomeDialog] = useState(false);
 
-  const { addIncome,  members , isAddingIncome ,isLoadingMembers        } =
+  const { addIncome, members, isAddingIncome, isLoadingMembers } =
     useKasManagement();
-  console.log(`THIS IS  ~ members:`, members)
+  console.log(`🚀 ~ DialogKasIncome.tsx:95 ~ members:`, members)
+
+
   const incomeForm = useForm<IncomeFormData>({
     resolver: zodResolver(incomeSchema),
     defaultValues: {
@@ -97,15 +82,15 @@ const DialogKasIncome = (props) => {
     },
   });
 
-   const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: incomeForm.control,
     name: "payments",
   });
 
-   const payments = useWatch({
-      control: incomeForm.control,
-      name: "payments",
-    });
+  const payments = useWatch({
+    control: incomeForm.control,
+    name: "payments",
+  });
 
   const handleAddIncome = (data: IncomeFormData) => {
     addIncome(data, {
@@ -275,6 +260,9 @@ const DialogKasIncome = (props) => {
                                     </SelectTrigger>
                                     <SelectContent>
                                       {members.map((member) => {
+                                        // Extract member name from the nested structure
+                                        const memberName = member.user?.profile?.name || member.name || "Unknown Member";
+                                        
                                         // Check if this member is already selected in other fields
                                         const isAlreadySelected = payments.some(
                                           (
@@ -297,7 +285,8 @@ const DialogKasIncome = (props) => {
                                                 : ""
                                             }
                                           >
-                                            {member.name}{" "}
+                                            {memberName}
+                                            {` `}
                                             {isAlreadySelected
                                               ? "(Already selected)"
                                               : ""}
@@ -417,12 +406,13 @@ const DialogKasIncome = (props) => {
                                           >
                                             {monthField.value && yearField.value
                                               ? `${format(
-                                                  monthField.value,
+                                                  new Date(
+                                                    2020,
+                                                    parseInt(monthField.value) -
+                                                      1
+                                                  ),
                                                   "MMM"
-                                                )}, ${format(
-                                                  yearField.value,
-                                                  "yyyy"
-                                                )}`
+                                                )}, ${yearField.value}`
                                               : "Select month & year"}
                                           </Button>
                                         </PopoverTrigger>

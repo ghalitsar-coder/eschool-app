@@ -1,32 +1,16 @@
 "use client";
 
-import { useKasManagement } from "@/hooks/use-kas";
-import apiClient from "@/lib/api/client";
 import React, { useEffect, useRef, useState, useMemo } from "react";
+
 import {
-  useForm,
-  useFieldArray,
-  FormProvider,
-  useWatch,
-} from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-  Plus,
   TrendingUp,
   TrendingDown,
-  Wallet,
   Calendar as CalendarIcon,
-  AlertCircle,
-  Users,
-  Filter,
-  Download,
   Search,
   Trash2,
   ChevronDownIcon,
   Eye,
 } from "lucide-react";
-import FinancialCharts from "./components/FinancialCharts";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,15 +21,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+
 import {
   Select,
   SelectContent,
@@ -61,15 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Popover,
@@ -78,20 +46,18 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { toast } from "sonner";
-import {
-  ExpenseFormData,
-  expenseSchema,
-  IncomeFormData,
-} from "@/types/page/kas";
+
+import { useAuth } from "@/hooks/use-auth";
+import { useKasRecords } from "@/hooks/use-kas";
 
 const TransactionRecords = (props) => {
-  const { setSelectedRecord, setShowDetailsDialog , records,isLoadingRecords } = props;
+  const { setSelectedRecord, setShowDetailsDialog, isLoadingRecords } = props;
+  const { user, treasurerEschoolId } = useAuth();
+  const { data } = useKasRecords({ eschoolId: treasurerEschoolId });
+  console.log(`🚀 ~ TransactionRecords.tsx:57 ~ data:`, data)
+
 
   const [searchTerm, setSearchTerm] = useState("");
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
   const [transactionTypeFilter, setTransactionTypeFilter] =
     useState<string>("");
   const [dateFilter, setDateFilter] = useState<
@@ -104,63 +70,12 @@ const TransactionRecords = (props) => {
     key: "date",
     direction: "desc",
   });
-  const filteredAndSortedRecords = useMemo(() => {
-    // Filter records
-    const filtered = records.filter((record) => {
-      const matchesSearch =
-        record.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        record.type.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesType = transactionTypeFilter
-        ? record.type === transactionTypeFilter
-        : true;
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
-      const matchesDate = dateFilter
-        ? new Date(record.date) >= new Date(dateFilter.from) &&
-          new Date(record.date) <= new Date(dateFilter.to)
-        : true;
+  const records = [];
 
-      return matchesSearch && matchesType && matchesDate;
-    });
-
-    // Sort records
-    filtered.sort((a, b) => {
-      if (sortConfig.key === "date") {
-        // For date sorting, we need to compare actual dates
-        const dateA = new Date(a[sortConfig.key]).getTime();
-        const dateB = new Date(b[sortConfig.key]).getTime();
-        if (dateA < dateB) {
-          return sortConfig.direction === "asc" ? -1 : 1;
-        }
-        if (dateA > dateB) {
-          return sortConfig.direction === "asc" ? 1 : -1;
-        }
-        return 0;
-      } else if (sortConfig.key === "amount") {
-        // For amount sorting, compare numbers
-        const amountA = Number(a[sortConfig.key]);
-        const amountB = Number(b[sortConfig.key]);
-        if (amountA < amountB) {
-          return sortConfig.direction === "asc" ? -1 : 1;
-        }
-        if (amountA > amountB) {
-          return sortConfig.direction === "asc" ? 1 : -1;
-        }
-        return 0;
-      } else {
-        // For other fields, use string comparison
-        if (a[sortConfig.key] < b[sortConfig.key]) {
-          return sortConfig.direction === "asc" ? -1 : 1;
-        }
-        if (a[sortConfig.key] > b[sortConfig.key]) {
-          return sortConfig.direction === "asc" ? 1 : -1;
-        }
-        return 0;
-      }
-    });
-
-    return filtered;
-  }, [records, searchTerm, transactionTypeFilter, dateFilter, sortConfig]);
   const handleViewDetails = (record: any) => {
     setSelectedRecord(record);
     setShowDetailsDialog(true);
@@ -173,11 +88,6 @@ const TransactionRecords = (props) => {
     }
     setSortConfig({ key, direction });
   };
-
-  const totalPages = Math.ceil(filteredAndSortedRecords.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedRecords = filteredAndSortedRecords.slice(startIndex, endIndex);
 
   return (
     <div className="px-4 lg:px-6">
@@ -311,7 +221,7 @@ const TransactionRecords = (props) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedRecords.length === 0 ? (
+                {data?.data?.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={4}
@@ -323,7 +233,7 @@ const TransactionRecords = (props) => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedRecords.map((record) => (
+                  data?.data?.map((record: any) => (
                     <TableRow key={record.id}>
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
@@ -379,7 +289,7 @@ const TransactionRecords = (props) => {
             </Table>
           )}
           {/* Pagination */}
-          {totalPages > 1 && (
+          {0 > 1 && (
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-muted-foreground">
                 Showing {startIndex + 1} to{" "}

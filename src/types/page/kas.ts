@@ -7,7 +7,9 @@ export const incomeSchema = z.object({
   payments: z
     .array(
       z.object({
-        member_id: z.string().min(1, "Please select a member"),
+        member_id: z
+          .string()
+          .min(1, "Please select a member"),
         amount: z
           .string()
           .min(1, "Amount is required")

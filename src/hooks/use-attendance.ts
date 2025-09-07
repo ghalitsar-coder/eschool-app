@@ -182,7 +182,7 @@ export const useAttendanceAnalytics = (
 // Hook to fetch members for attendance using new multi-role API
 export const useAttendanceMembers = (): UseMembersReturn => {
   const { user } = useAuth();
-  console.log(`THIS IS  ~ user:`, user);
+  
 
   const { data, isLoading, error } = useQuery<AttendanceMember[], Error>({
     queryKey: ["attendance-members", user?.eschool_id],
@@ -192,7 +192,7 @@ export const useAttendanceMembers = (): UseMembersReturn => {
       }
       // Use the new multi-role attendance members API
       const response = await attendanceApi.getAttendanceMembers(user.eschool_id);
-      console.log(`THIS IS  ~ response:`, response.slice(0, 3));
+      
       return response || [];
     },
     enabled: !!user?.eschool_id,

@@ -4,7 +4,18 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, User, Users, CreditCard, Building, Mail, UserCircle, Info, Settings, Loader2 } from "lucide-react";
+import {
+  Plus,
+  User,
+  Users,
+  CreditCard,
+  Building,
+  Mail,
+  UserCircle,
+  Info,
+  Settings,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,45 +50,47 @@ import { Eschool, User as UserType } from "@/types/api";
 import { useEligibleTreasurers } from "@/hooks/use-eschool";
 import { useAuth } from "@/hooks/use-auth";
 
-const eschoolSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-  // New coordinator fields (always required for new eschool)
-  new_coordinator_name: z.string().min(1, "Coordinator name is required"),
-  new_coordinator_email: z.string().email("Invalid email format"),
-  new_coordinator_nip: z.string().optional(),
-  new_coordinator_date_of_birth: z.string().optional(),
-  new_coordinator_gender: z.enum(["L", "P"]).optional(),
-  new_coordinator_address: z.string().optional(),
-  new_coordinator_phone: z.string().optional(),
-  // Treasurer option
-  treasurer_option: z.enum(["existing", "new"]).default("existing"),
-  treasurer_id: z.string().optional(),
-  new_treasurer_name: z.string().optional(),
-  new_treasurer_email: z.string().email().optional(),
-  new_treasurer_nip: z.string().optional(),
-  new_treasurer_date_of_birth: z.string().optional(),
-  new_treasurer_gender: z.enum(["L", "P"]).optional(),
-  new_treasurer_address: z.string().optional(),
-  new_treasurer_phone: z.string().optional(),
-  schedule_days: z.array(z.string()).optional(),
-  monthly_kas_amount: z.string().optional(),
-  total_schedule_days: z.string().optional(),
-  is_active: z.boolean().optional(),
-}).refine(
-  (data) => {
-    if (data.treasurer_option === "existing") {
-      return !!data.treasurer_id;
-    } else if (data.treasurer_option === "new") {
-      return !!data.new_treasurer_name && !!data.new_treasurer_email;
+const eschoolSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    description: z.string().optional(),
+    // New coordinator fields (always required for new eschool)
+    new_coordinator_name: z.string().min(1, "Coordinator name is required"),
+    new_coordinator_email: z.string().email("Invalid email format"),
+    new_coordinator_nip: z.string().optional(),
+    new_coordinator_date_of_birth: z.string().optional(),
+    new_coordinator_gender: z.enum(["L", "P"]).optional(),
+    new_coordinator_address: z.string().optional(),
+    new_coordinator_phone: z.string().optional(),
+    // Treasurer option
+    treasurer_option: z.enum(["existing", "new"]).default("existing"),
+    treasurer_id: z.string().optional(),
+    new_treasurer_name: z.string().optional(),
+    new_treasurer_email: z.string().email().optional(),
+    new_treasurer_nip: z.string().optional(),
+    new_treasurer_date_of_birth: z.string().optional(),
+    new_treasurer_gender: z.enum(["L", "P"]).optional(),
+    new_treasurer_address: z.string().optional(),
+    new_treasurer_phone: z.string().optional(),
+    schedule_days: z.array(z.string()).optional(),
+    monthly_kas_amount: z.string().optional(),
+    total_schedule_days: z.string().optional(),
+    is_active: z.boolean().optional(),
+  })
+  .refine(
+    (data) => {
+      if (data.treasurer_option === "existing") {
+        return !!data.treasurer_id;
+      } else if (data.treasurer_option === "new") {
+        return !!data.new_treasurer_name && !!data.new_treasurer_email;
+      }
+      return true;
+    },
+    {
+      message: "Please select treasurer or provide new treasurer details",
+      path: ["treasurer_id"],
     }
-    return true;
-  },
-  {
-    message: "Please select treasurer or provide new treasurer details",
-    path: ["treasurer_id"],
-  }
-);
+  );
 
 type EschoolFormData = z.infer<typeof eschoolSchema>;
 
@@ -123,8 +136,8 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
     },
   });
 
-  const { data: treasurers = [], isLoading: loadingTreasurers } = useEligibleTreasurers();
-  console.log(`THIS IS  ~ treasurers:`, treasurers)
+  const { data: treasurers = [], isLoading: loadingTreasurers } =
+    useEligibleTreasurers();
 
   const onSubmit = (data: EschoolFormData) => {
     const payload: any = {
@@ -150,7 +163,11 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
     }
 
     // Handle schedule_days
-    if (data.schedule_days && Array.isArray(data.schedule_days) && data.schedule_days.length > 0) {
+    if (
+      data.schedule_days &&
+      Array.isArray(data.schedule_days) &&
+      data.schedule_days.length > 0
+    ) {
       payload.schedule_days = data.schedule_days;
     } else {
       delete payload.schedule_days;
@@ -160,19 +177,20 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
     if (data.new_coordinator_nip) {
       payload.new_coordinator_nip = data.new_coordinator_nip;
     }
-    
+
     if (data.new_coordinator_date_of_birth) {
-      payload.new_coordinator_date_of_birth = data.new_coordinator_date_of_birth;
+      payload.new_coordinator_date_of_birth =
+        data.new_coordinator_date_of_birth;
     }
-    
+
     if (data.new_coordinator_gender) {
       payload.new_coordinator_gender = data.new_coordinator_gender;
     }
-    
+
     if (data.new_coordinator_address) {
       payload.new_coordinator_address = data.new_coordinator_address;
     }
-    
+
     if (data.new_coordinator_phone) {
       payload.new_coordinator_phone = data.new_coordinator_phone;
     }
@@ -182,23 +200,23 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
       if (data.new_treasurer_nip) {
         payload.new_treasurer_nip = data.new_treasurer_nip;
       }
-      
+
       if (data.new_treasurer_date_of_birth) {
         payload.new_treasurer_date_of_birth = data.new_treasurer_date_of_birth;
       }
-      
+
       if (data.new_treasurer_gender) {
         payload.new_treasurer_gender = data.new_treasurer_gender;
       }
-      
+
       if (data.new_treasurer_address) {
         payload.new_treasurer_address = data.new_treasurer_address;
       }
-      
+
       if (data.new_treasurer_phone) {
         payload.new_treasurer_phone = data.new_treasurer_phone;
       }
-      
+
       // Remove treasurer_id when creating new treasurer
       delete payload.treasurer_id;
     } else {
@@ -224,7 +242,8 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
             Create New Eschool
           </DialogTitle>
           <DialogDescription>
-            Set up a new extracurricular activity with its coordinator and treasurer.
+            Set up a new extracurricular activity with its coordinator and
+            treasurer.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -245,9 +264,9 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                     <FormItem>
                       <FormLabel>Eschool Name *</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Enter eschool name (e.g., Basketball Club)" 
-                          {...field} 
+                        <Input
+                          placeholder="Enter eschool name (e.g., Basketball Club)"
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
@@ -298,10 +317,10 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                         <FormControl>
                           <div className="relative">
                             <UserCircle className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                              placeholder="Full name" 
-                              className="pl-10" 
-                              {...field} 
+                            <Input
+                              placeholder="Full name"
+                              className="pl-10"
+                              {...field}
                             />
                           </div>
                         </FormControl>
@@ -318,11 +337,11 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                         <FormControl>
                           <div className="relative">
                             <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                              type="email" 
-                              placeholder="email@example.com" 
-                              className="pl-10" 
-                              {...field} 
+                            <Input
+                              type="email"
+                              placeholder="email@example.com"
+                              className="pl-10"
+                              {...field}
                             />
                           </div>
                         </FormControl>
@@ -337,10 +356,7 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                       <FormItem>
                         <FormLabel>NIP/NIS</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="NIP/NIS" 
-                            {...field} 
-                          />
+                          <Input placeholder="NIP/NIS" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -353,17 +369,14 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Phone number" 
-                            {...field} 
-                          />
+                          <Input placeholder="Phone number" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -372,10 +385,7 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                       <FormItem>
                         <FormLabel>Date of Birth</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="date" 
-                            {...field} 
-                          />
+                          <Input type="date" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -387,7 +397,10 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Gender</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select gender" />
@@ -403,7 +416,7 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                     )}
                   />
                 </div>
-                
+
                 <FormField
                   control={form.control}
                   name="new_coordinator_address"
@@ -421,17 +434,23 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                     </FormItem>
                   )}
                 />
-                
+
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                   <div className="flex items-start gap-2">
                     <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-blue-800">Account Setup</p>
+                      <p className="text-sm font-medium text-blue-800">
+                        Account Setup
+                      </p>
                       <p className="text-xs text-blue-700">
-                        The coordinator will receive login credentials via email. 
-                        They will be able to manage this eschool exclusively.
+                        The coordinator will receive login credentials via
+                        email. They will be able to manage this eschool
+                        exclusively.
                         <br />
-                        <strong className="text-blue-900">Default password:</strong> password
+                        <strong className="text-blue-900">
+                          Default password:
+                        </strong>{" "}
+                        password
                       </p>
                     </div>
                   </div>
@@ -449,7 +468,8 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                   Treasurer
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Select an existing treasurer or create a new one for this eschool.
+                  Select an existing treasurer or create a new one for this
+                  eschool.
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -459,15 +479,22 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Treasurer Option</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select treasurer option" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="existing">Select Existing Treasurer</SelectItem>
-                          <SelectItem value="new">Create New Treasurer</SelectItem>
+                          <SelectItem value="existing">
+                            Select Existing Treasurer
+                          </SelectItem>
+                          <SelectItem value="new">
+                            Create New Treasurer
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -483,7 +510,10 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Select Treasurer</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue placeholder="Choose a treasurer" />
@@ -496,11 +526,16 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                                 </SelectItem>
                               ) : treasurers.length > 0 ? (
                                 treasurers.map((treasurer) => (
-                                  <SelectItem key={treasurer.id} value={String(treasurer.id)}>
+                                  <SelectItem
+                                    key={treasurer.id}
+                                    value={String(treasurer.id)}
+                                  >
                                     <div className="flex items-center gap-2">
                                       <User className="h-4 w-4" />
                                       <span>{treasurer.name}</span>
-                                      <span className="text-muted-foreground text-xs">({treasurer.email})</span>
+                                      <span className="text-muted-foreground text-xs">
+                                        ({treasurer.email})
+                                      </span>
                                     </div>
                                   </SelectItem>
                                 ))
@@ -528,10 +563,10 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                             <FormControl>
                               <div className="relative">
                                 <UserCircle className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                  placeholder="Full name" 
-                                  className="pl-10" 
-                                  {...field} 
+                                <Input
+                                  placeholder="Full name"
+                                  className="pl-10"
+                                  {...field}
                                 />
                               </div>
                             </FormControl>
@@ -548,11 +583,11 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                             <FormControl>
                               <div className="relative">
                                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                  type="email" 
-                                  placeholder="email@example.com" 
-                                  className="pl-10" 
-                                  {...field} 
+                                <Input
+                                  type="email"
+                                  placeholder="email@example.com"
+                                  className="pl-10"
+                                  {...field}
                                 />
                               </div>
                             </FormControl>
@@ -567,10 +602,7 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                           <FormItem>
                             <FormLabel>NIP/NIS</FormLabel>
                             <FormControl>
-                              <Input 
-                                placeholder="NIP/NIS" 
-                                {...field} 
-                              />
+                              <Input placeholder="NIP/NIS" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -583,17 +615,14 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                           <FormItem>
                             <FormLabel>Phone Number</FormLabel>
                             <FormControl>
-                              <Input 
-                                placeholder="Phone number" 
-                                {...field} 
-                              />
+                              <Input placeholder="Phone number" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -602,10 +631,7 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                           <FormItem>
                             <FormLabel>Date of Birth</FormLabel>
                             <FormControl>
-                              <Input 
-                                type="date" 
-                                {...field} 
-                              />
+                              <Input type="date" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -617,7 +643,10 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Gender</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select
+                              onValueChange={field.onChange}
+                              value={field.value}
+                            >
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select gender" />
@@ -633,7 +662,7 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                         )}
                       />
                     </div>
-                    
+
                     <FormField
                       control={form.control}
                       name="new_treasurer_address"
@@ -655,12 +684,18 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                       <div className="flex items-start gap-2">
                         <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-sm font-medium text-blue-800">Account Setup</p>
+                          <p className="text-sm font-medium text-blue-800">
+                            Account Setup
+                          </p>
                           <p className="text-xs text-blue-700">
-                            The treasurer will receive login credentials via email. 
-                            They will be able to manage the finances for this eschool exclusively.
+                            The treasurer will receive login credentials via
+                            email. They will be able to manage the finances for
+                            this eschool exclusively.
                             <br />
-                            <strong className="text-blue-900">Default password:</strong> password
+                            <strong className="text-blue-900">
+                              Default password:
+                            </strong>{" "}
+                            password
                           </p>
                         </div>
                       </div>
@@ -692,12 +727,16 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                       <FormItem>
                         <FormLabel>Monthly Kas Amount (IDR)</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="20000" 
-                            {...field} 
+                          <Input
+                            type="number"
+                            placeholder="20000"
+                            {...field}
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value === "" ? "" : e.target.value)}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === "" ? "" : e.target.value
+                              )
+                            }
                           />
                         </FormControl>
                         <FormMessage />
@@ -711,12 +750,16 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                       <FormItem>
                         <FormLabel>Total Schedule Days</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="3" 
-                            {...field} 
+                          <Input
+                            type="number"
+                            placeholder="3"
+                            {...field}
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value === "" ? "" : e.target.value)}
+                            onChange={(e) =>
+                              field.onChange(
+                                e.target.value === "" ? "" : e.target.value
+                              )
+                            }
                           />
                         </FormControl>
                         <FormMessage />
@@ -724,7 +767,7 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
                     )}
                   />
                 </div>
-                
+
                 <FormField
                   control={form.control}
                   name="schedule_days"
@@ -764,7 +807,11 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isCreating} className="bg-primary hover:bg-primary/90">
+              <Button
+                type="submit"
+                disabled={isCreating}
+                className="bg-primary hover:bg-primary/90"
+              >
                 {isCreating ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -784,7 +831,5 @@ const DialogCreateEschool: React.FC<DialogCreateEschoolProps> = ({
     </Dialog>
   );
 };
-
-
 
 export default DialogCreateEschool;

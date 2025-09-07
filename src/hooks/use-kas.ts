@@ -25,23 +25,23 @@ export const useKasRecords = (params?: {
   month?: number;
   year?: number;
   page?: number;
+  eschoolId ?:number;
 }) => {
-  const { isBendahara, isKoordinator, isStaff, user, isAuthenticated } =
-    useAuth();
+ 
 
+ 
   return useQuery({
     queryKey: [...kasQueryKeys.records, params],
     queryFn: async () => {
-      const response = await kasApi.getKasRecords(params);
+    const response = await kasApi.getKasRecords(params);
       return response;
     },
-    enabled: true,
+    enabled: !!params?.eschoolId,
   });
 };
 
 export const useKasSummary = () => {
-  const { isBendahara, isKoordinator, isStaff, user, isAuthenticated } =
-    useAuth();
+ 
 
   return useQuery({
     queryKey: kasQueryKeys.summary,
@@ -54,28 +54,21 @@ export const useKasSummary = () => {
 };
 
 export const useMembers = () => {
-  const { user, isAuthenticated } = useAuth();
-  console.log(`🚀 ~ use-kas.ts:58 ~ user:`, user)
-
+  const { treasurerEschoolId } = useAuth();
+  
 
   return useQuery({
     queryKey: kasQueryKeys.members,
     queryFn: async () => {
-      if (!user) {
-        throw new Error("User is not available");
-      }
-      // For kas purposes, we need members from the user's eschool
-      const response = await memberApi.getMembersByEschool(user.eschool_id);
+     
+      const response = await memberApi.getMembersByEschool(treasurerEschoolId);
       return response;
     },
-    enabled: true ,
-    // staleTime: 10 * 60 * 1000, // 10 minutes (members don't change often)
-    // retry: (failureCount, error: any) => {
-    //   if (error?.response?.status === 401 || error?.response?.status === 403) {
-    //     return false;
-    //   }
-    //   return failureCount < 3;
-    // },
+    enabled: !!treasurerEschoolId,
+    select: (data) => {
+      // Transform the data to match what the components expect
+      return data?.data?.members || [];
+    }
   });
 };
 
@@ -178,7 +171,7 @@ export const useExportKasRecords = () => {
     },
     onSuccess: () => {
       // Show success message
-      console.log("Export completed successfully");
+      
     },
     onError: (error: any) => {
       console.error("Failed to export kas records:", error?.message);
@@ -194,31 +187,10 @@ export const useKasManagement = () => {
   const recordsQuery = useKasRecords();
   const summaryQuery = useKasSummary();
   const membersQuery = useMembers();
-  console.log(`THIS IS  ~ membersQuery:`, membersQuery)
   const addIncomeMutation = useAddIncome();
   const addExpenseMutation = useAddExpense();
   const updateRecordMutation = useUpdateKasRecord();
   const exportRecordsMutation = useExportKasRecords();
-
-  // Transform the members data to match the expected structure
-  // const transformedMembersData = membersQuery.data
-  //   ? {
-  //       eschool: {
-  //         id: membersQuery?.data?.data?.[0]?.eschools[0]?.id || 0,
-  //         name:
-  //           membersQuery?.data?.data?.[0]?.eschools[0]?.name || "Unknown Eschool",
-  //         monthly_kas_amount:
-  //           membersQuery?.data?.data?.[0]?.eschools[0]?.monthly_kas_amount || 0,
-  //       },
-  //       members: membersQuery?.data?.data?.map((member) => ({
-  //         id: member.id,
-  //         student_id: member.student_id,
-  //         name: member.name,
-  //         email: member.user?.email || "",
-  //         phone: member.phone,
-  //       })),
-  //     }
-  //   : null;
 
   return {
     // Queries data
@@ -240,8 +212,8 @@ export const useKasManagement = () => {
         payment_percentage: 0,
       },
     },
-    members: membersQuery?.data?.members || [],
-    eschool: membersQuery?.data?.eschool,
+    members: membersQuery.data || [],
+    // eschool: membersQuery?.data?.eschool,
 
     // Loading states
     isLoadingRecords: recordsQuery.isLoading,

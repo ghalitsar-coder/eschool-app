@@ -79,7 +79,7 @@ export const multiRoleProfileApi = {
   getProfile: async (): Promise<ApiResponse<MultiRoleProfileData>> => {
     try {
       const response = await apiClient.get<RawMultiRoleProfileData>('/profile/multi-role')
-      console.log(`🚀 ~ multi-role-profile.ts:79 ~ response:`, response)
+      
 
       // The backend returns data directly, not wrapped in ApiResponse
       // So we need to wrap it in the expected structure

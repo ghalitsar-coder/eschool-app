@@ -90,7 +90,7 @@ export const useMultiRoleProfile = () => {
     queryFn: async () => {
       try {
         const response = await multiRoleProfileApi.getProfile();
-        console.log(`🚀 ~ use-multi-role-profile.ts:85 ~ response:`, response);
+        
         
         // Return the data from the response
         if (response && response.data) {

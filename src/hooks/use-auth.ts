@@ -1,10 +1,9 @@
 // useAuth with TanStack Query integration
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
-import { useAuthStore } from "@/lib/stores/auth";
 import { authApi } from "@/lib/api/auth";
-import apiClient from "@/lib/api/client";
-import { useTokenCheck } from "./use-token-check";
+
+// useAuth.ts - Authentication hook with Zustand
+import { useAuthStore } from "@/lib/stores/auth";
 import { ApiResponse, LoginResponse } from "@/types/api";
 
 // Query keys for better cache management
@@ -134,79 +133,66 @@ export const useRefreshToken = () => {
   });
 };
 
-// Main useAuth hook that combines everything
+// Hook to access authentication state and actions
 export const useAuth = () => {
-  const { user, isAuthenticated, updateUser } = useAuthStore();
-  const queryClient = useQueryClient();
+  const { user, isAuthenticated, login, logout, updateUser, setUser, setToken } =
+    useAuthStore();
 
-  // Initialize auth state on mount
-  const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
+  // Check if user has a specific role
+  const hasRole = (role: string) => {
+    return user?.roles?.some((userRole) => userRole.role === role) || false;
+  };
 
-  // Helper method for making authenticated API requests
-  const apiRequest = useCallback(
-    async <T>(endpoint: string, options: any = {}): Promise<T> => {
-      try {
-        const response = await apiClient.request<T>({
-          url: endpoint,
-          ...options,
-        });
-        return response.data;
-      } catch (error) {
-        // Error handling is already done in axios interceptor
-        throw error;
-      }
-    },
-    []
-  );
+  // Check if user has any of the specified roles
+  const hasAnyRole = (roles: string[]) => {
+    return user?.roles?.some((userRole) => roles.includes(userRole.role)) || false;
+  };
 
-  // Role checking helpers
-  const hasRole = useCallback(
-    (role: string) => {
-      return user?.role === role;
-    },
-    [user]
-  );
+  // Get user's eschool ID for a specific role
+  const getEschoolIdForRole = (role: string) => {
+    const userRole = user?.roles?.find((userRole) => userRole.role === role);
+    return userRole ? userRole.eschool_id : null;
+  };
 
-  const hasAnyRole = useCallback(
-    (roles: string[]) => {
-      return user?.role ? roles.includes(user.role) : false;
-    },
-    [user]
-  );
+  // Get all eschool IDs for user's roles
+  const getAllEschoolIds = () => {
+    return user?.roles?.map((userRole) => userRole.eschool_id) || [];
+  };
+
+  // Check if user is a staff member
+  const isStaff = hasRole("supervisor");
+
+  // Check if user is a coordinator
+  const isKoordinator = hasRole("coordinator");
+
+  // Check if user is a treasurer
+  const isBendahara = hasRole("treasurer");
+
+  // Check if user is a regular member
+  const isMember = hasRole("member");
+
+  const treasurerEschoolId =  user?.roles.find(data => data.role == "treasurer")?.eschool_id
 
   return {
-    // State
+    // User data
     user,
     isAuthenticated,
-    isLoadingUser,
 
-    // Mutations
-    loginMutation: useLogin(),
-    registerMutation: useRegister(),
-    logoutMutation: useLogout(),
-    changePasswordMutation: useChangePassword(),
-    refreshTokenMutation: useRefreshToken(),
-
-    // Queries
-    // profileQuery: useProfile(),
-
-    // Actions
-    updateUser,
-
-    // API helper
-    apiRequest,
-
-    // Role helpers
+    // Role checks
     hasRole,
     hasAnyRole,
-
-    // Role shortcuts
-    isSiswa: hasRole("siswa"),
-    isBendahara: hasRole("bendahara"),
-    isKoordinator: hasRole("koordinator"),
-    isStaff: hasRole("staff"),
-
-    // Query client for manual cache management
-    queryClient,
+    isStaff,
+    isKoordinator,
+    isBendahara,
+    isMember,
+    treasurerEschoolId,  
+    getEschoolIdForRole,
+    getAllEschoolIds,
+    // Actions
+    login,
+    logout,
+    updateUser,
+    setUser,
+    setToken,
   };
 };

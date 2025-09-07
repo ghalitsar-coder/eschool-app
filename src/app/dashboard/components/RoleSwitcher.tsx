@@ -9,20 +9,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  User, 
-  School, 
-  Wallet, 
-  Users, 
+import {
+  User,
+  School,
+  Wallet,
+  Users,
   ChevronDown,
   BadgeDollarSign,
-  CalendarCheck
+  CalendarCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
@@ -43,34 +43,38 @@ interface RoleSwitcherProps {
   onEschoolChange?: (eschoolId: number, role: string) => void;
 }
 
-const RoleSwitcher: React.FC<RoleSwitcherProps> = ({ 
+const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   currentEschoolId,
-  onEschoolChange 
+  onEschoolChange,
 }) => {
   const { user } = useAuth();
   const router = useRouter();
-  const [selectedEschoolId, setSelectedEschoolId] = useState<number | undefined>(currentEschoolId);
+  const [selectedEschoolId, setSelectedEschoolId] = useState<
+    number | undefined
+  >(currentEschoolId);
 
   // Get unique roles from user's eschools
   const getUniqueRoles = () => {
     if (!user?.eschools) return [];
-    const roles = user.eschools.map(eschool => eschool.role_in_eschool);
+    const roles = user.eschools.map((eschool) => eschool.role_in_eschool);
     return [...new Set(roles)];
   };
 
   // Get eschools for a specific role
   const getEschoolsByRole = (role: string) => {
     if (!user?.eschools) return [];
-    return user.eschools.filter(eschool => eschool.role_in_eschool === role);
+    return user.eschools.filter((eschool) => eschool.role_in_eschool === role);
   };
 
   // Handle eschool selection
   const handleEschoolSelect = (eschoolId: string) => {
     const id = parseInt(eschoolId);
     setSelectedEschoolId(id);
-    
+
     // Find the selected eschool to get the role
-    const selectedEschool = user?.eschools?.find(eschool => eschool.eschool_id === id);
+    const selectedEschool = user?.eschools?.find(
+      (eschool) => eschool.eschool_id === id
+    );
     if (selectedEschool && onEschoolChange) {
       onEschoolChange(id, selectedEschool.role_in_eschool);
     }
@@ -79,11 +83,11 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   // Get role icon
   const getRoleIcon = (role: string) => {
     switch (role.toLowerCase()) {
-      case 'bendahara':
+      case "bendahara":
         return <Wallet className="h-4 w-4" />;
-      case 'koordinator':
+      case "koordinator":
         return <Users className="h-4 w-4" />;
-      case 'member':
+      case "member":
         return <User className="h-4 w-4" />;
       default:
         return <User className="h-4 w-4" />;
@@ -93,12 +97,12 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   // Get role label
   const getRoleLabel = (role: string) => {
     switch (role.toLowerCase()) {
-      case 'bendahara':
-        return 'Bendahara';
-      case 'koordinator':
-        return 'Koordinator';
-      case 'member':
-        return 'Member';
+      case "bendahara":
+        return "Bendahara";
+      case "koordinator":
+        return "Koordinator";
+      case "member":
+        return "Member";
       default:
         return role;
     }
@@ -107,14 +111,14 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   // Get role badge variant
   const getRoleBadgeVariant = (role: string) => {
     switch (role.toLowerCase()) {
-      case 'bendahara':
-        return 'default';
-      case 'koordinator':
-        return 'secondary';
-      case 'member':
-        return 'outline';
+      case "bendahara":
+        return "default";
+      case "koordinator":
+        return "secondary";
+      case "member":
+        return "outline";
       default:
-        return 'default';
+        return "default";
     }
   };
 
@@ -138,12 +142,11 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {getUniqueRoles().map((role) => (
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   key={role}
                   onClick={() => {
                     // For now, we'll just update the primary role
                     // In a real implementation, you might want to refresh user data
-                    console.log(`Switching to role: ${role}`);
                   }}
                   className="gap-2"
                 >
@@ -164,8 +167,8 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
       {/* Eschool Switcher */}
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">Eschool:</span>
-        <Select 
-          value={selectedEschoolId?.toString() || ""} 
+        <Select
+          value={selectedEschoolId?.toString() || ""}
           onValueChange={handleEschoolSelect}
         >
           <SelectTrigger className="w-[200px]">
@@ -173,8 +176,8 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
           </SelectTrigger>
           <SelectContent>
             {user.eschools.map((eschool) => (
-              <SelectItem 
-                key={eschool.eschool_id} 
+              <SelectItem
+                key={eschool.eschool_id}
                 value={eschool.eschool_id.toString()}
               >
                 <div className="flex items-center justify-between w-full">
@@ -182,8 +185,8 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
                     <School className="h-4 w-4" />
                     <span>{eschool.eschool_name}</span>
                   </div>
-                  <Badge 
-                    variant={getRoleBadgeVariant(eschool.role_in_eschool)} 
+                  <Badge
+                    variant={getRoleBadgeVariant(eschool.role_in_eschool)}
                     className="ml-2"
                   >
                     {getRoleLabel(eschool.role_in_eschool)}

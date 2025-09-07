@@ -5,6 +5,6 @@ import apiClient from "./client"
 export const getEligibleTreasurers = async (schoolId?: number): Promise<User[]> => {
   const params = schoolId ? { school_id: schoolId } : {};
   const response = await apiClient.get<User[]>('/eschools/users/treasurers', { params });
-  console.log(`THIS IS  ~ response:`, response)
+  
   return response.data || [];
 }

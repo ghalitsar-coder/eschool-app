@@ -14,10 +14,10 @@ import DialogKasDetail from "./components/DialogKasDetail";
 import HeaderKas from "./components/HeaderKas";
 import ErrorKasAlert from "./components/ErrorKasAlert";
 import DialogUpdateKas from "./components/DialogUpdateKas";
+import SummaryCards from "./components/SummaryCards";
 
 const KasManagement: React.FC = () => {
   const {
-    records,
     members,
     isLoadingRecords,
     recordsError,
@@ -25,6 +25,8 @@ const KasManagement: React.FC = () => {
     addIncomeError,
     addExpenseError,
     exportError,
+    summary,
+    isLoadingSummary
   } = useKasManagement();
   const [selectedRecord, setSelectedRecord] = useState<any>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
@@ -53,6 +55,9 @@ const KasManagement: React.FC = () => {
       {/* Header */}
       <HeaderKas setShowExportDialog={setShowExportDialog} />
 
+      {/* Summary Cards */}
+      <SummaryCards />
+
       {/* Error Alert */}
       {hasErrors && <ErrorKasAlert />}
 
@@ -68,7 +73,6 @@ const KasManagement: React.FC = () => {
       <TransactionRecords
         setSelectedRecord={setSelectedRecord}
         setShowDetailsDialog={setShowDetailsDialog}
-        records={records}
         isLoadingRecords={isLoadingRecords}
       />
 
