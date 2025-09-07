@@ -97,7 +97,6 @@ export const kasApi = {
       const response = await apiClient.post("/kas/records", {
         ...data,
         eschool_id: 1, // This should come from the user's eschool context
-        category: data.category || "expense"
       });
       return response.data;
     } catch (error) {
@@ -129,7 +128,6 @@ export const kasApi = {
     eschoolId:number;
   }): Promise<any> => {
     
-
     // alert("helo")
     const {eschoolId,...payload} = params
     try {
@@ -146,7 +144,10 @@ export const kasApi = {
           category: record.category,
           date: record.date,
           created_at: record.created_at,
+          updated_at: record.updated_at,
+          recorder: record.recorder,
           payments: record.kas_payments ? record.kas_payments.map((payment: any) => ({
+            id: payment.id,
             member_name: payment.member?.user?.profile?.name || "Unknown Member",
             amount: parseFloat(payment.amount.toString()),
             month: parseInt(payment.month),

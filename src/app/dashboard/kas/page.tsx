@@ -88,7 +88,9 @@ const KasManagement: React.FC = () => {
       {/* Transaction Details Dialog */}
       <DialogKasDetail
         selectedRecord={selectedRecord}
+        showDetailsDialog={showDetailsDialog}
         setSelectedRecord={setSelectedRecord}
+        setShowDetailsDialog={setShowDetailsDialog}
         updateForm={updateForm}
         setShowUpdateDialog={setShowUpdateDialog}
       />

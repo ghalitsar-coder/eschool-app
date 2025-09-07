@@ -2,13 +2,12 @@
 
 import { useKasManagement } from "@/hooks/use-kas";
 import apiClient from "@/lib/api/client";
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Plus, TrendingDown, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -34,6 +33,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { toast } from "sonner";
 import { ExpenseFormData, expenseSchema } from "@/types/page/kas";
 
 const DialogKasExpense = () => {
@@ -54,14 +54,20 @@ const DialogKasExpense = () => {
       {
         amount: parseFloat(data.amount),
         description: data.description,
-        category: data.category,
+        category: data.category || "expense",
         date: data.date,
       },
       {
         onSuccess: () => {
           setShowExpenseDialog(false);
           expenseForm.reset();
+          toast.success("Expense added successfully");
         },
+        onError: (error: any) => {
+          // Handle error with toast notification
+          const errorMessage = error?.response?.data?.message || error.message || "Failed to add expense";
+          toast.error(`Failed to add expense: ${errorMessage}`);
+        }
       }
     );
   };

@@ -70,7 +70,6 @@ const DialogKasIncome = (props) => {
 
   const { addIncome, members, isAddingIncome, isLoadingMembers } =
     useKasManagement();
-  console.log(`🚀 ~ DialogKasIncome.tsx:95 ~ members:`, members)
 
 
   const incomeForm = useForm<IncomeFormData>({
@@ -104,18 +103,26 @@ const DialogKasIncome = (props) => {
         if (error?.response?.data?.errors) {
           const backendErrors = error.response.data.errors;
 
-          // Display errors for each payment field
-          Object.keys(backendErrors).forEach((fieldPath) => {
-            const errorMessage = backendErrors[fieldPath];
-            incomeForm.setError(fieldPath as any, {
-              message: errorMessage,
+          // Handle duplicate payment errors specifically
+          if (backendErrors.duplicate_payments) {
+            // Show the specific duplicate payment error message
+            toast.error(error?.response?.data?.message || "Duplicate payment detected");
+          } 
+          // Handle other field validation errors
+          else {
+            // Display errors for each payment field
+            Object.keys(backendErrors).forEach((fieldPath) => {
+              const errorMessage = backendErrors[fieldPath];
+              incomeForm.setError(fieldPath as any, {
+                message: errorMessage,
+              });
             });
-          });
 
-          // Also show a general toast error
-          toast.error(
-            "Failed to add income. Please check the form for errors."
-          );
+            // Also show a general toast error
+            toast.error(
+              "Failed to add income. Please check the form for errors."
+            );
+          }
         } else {
           toast.error(
             `Failed to add income: ${
