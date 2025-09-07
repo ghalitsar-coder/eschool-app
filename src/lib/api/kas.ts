@@ -184,9 +184,9 @@ export const kasApi = {
           monthly_kas_amount: parseFloat(response.data.data.eschool.monthly_fee_amount.toString())
         },
         summary: {
-          total_income: parseFloat(response.data.data.summary.total_collected.toString()),
-          total_expense: 0, // We need to get this from actual expense records
-          balance: parseFloat(response.data.data.summary.total_collected.toString()), // Income - Expense
+          total_income: parseFloat(response.data.data.summary.total_income.toString()),
+          total_expense: parseFloat(response.data.data.summary.total_expense.toString()),
+          balance: parseFloat(response.data.data.summary.balance.toString()),
           total_members: parseInt(response.data.data.summary.total_members.toString())
         },
         current_month: {

@@ -60,6 +60,8 @@ const SummaryCards = () => {
           ) : (
             <>
               <div className="text-2xl font-bold">
+                {console.log(`🚀 ~ SummaryCards.tsx:63 ~ summary:`, summary)}
+
                 {formatCurrency(summary.summary.total_expense)}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -84,9 +86,7 @@ const SummaryCards = () => {
               <div className="text-2xl font-bold">
                 {formatCurrency(summary.summary.balance)}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Available funds
-              </p>
+              <p className="text-xs text-muted-foreground">Available funds</p>
             </>
           )}
         </CardContent>
