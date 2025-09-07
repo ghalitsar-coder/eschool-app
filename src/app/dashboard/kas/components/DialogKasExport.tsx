@@ -1,7 +1,8 @@
 "use client";
 
 import { useKasManagement } from "@/hooks/use-kas";
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import { useAuth } from "@/hooks/use-auth";
+import React, { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -27,6 +28,8 @@ import { toast } from "sonner";
 const DialogKasExport = (props) => {
   const { setShowExportDialog, showExportDialog } = props;
   const { isExporting, exportRecords } = useKasManagement();
+  const { treasurerEschoolId } = useAuth();
+  
   const [exportFilters, setExportFilters] = useState({
     type: "all",
     date_from: "",
@@ -36,9 +39,11 @@ const DialogKasExport = (props) => {
     month: "",
     year: "",
   });
+  
   const handleExport = () => {
     const exportParams: any = {
       format: exportFilters.format as "csv" | "excel",
+      eschoolId: treasurerEschoolId, // Add eschoolId
     };
 
     // Only add type parameter if it's not "all"
@@ -79,7 +84,7 @@ const DialogKasExport = (props) => {
         toast.success("Export completed successfully");
         setShowExportDialog(false);
       },
-      onError: (error: unknown) => {
+      onError: (error: any) => {
         console.error("Export error:", error);
         toast.error(`Export failed: ${error?.message || "Unknown error"}`);
       },

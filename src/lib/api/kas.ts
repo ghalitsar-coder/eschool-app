@@ -154,11 +154,13 @@ export const kasApi = {
             year: parseInt(payment.year)
           })) : []
         })),
-        pagination: {
+        pagination: response.data.pagination || {
           current_page: 1,
           last_page: 1,
           per_page: response.data.data.kas_records.length,
-          total: response.data.data.kas_records.length
+          total: response.data.data.kas_records.length,
+          from: 1,
+          to: response.data.data.kas_records.length
         }
       };
 
@@ -211,26 +213,21 @@ export const kasApi = {
     format?: "csv" | "excel";
     date_from?: string;
     date_to?: string;
+    eschoolId?: number; // Add eschoolId parameter
   }): Promise<Blob> => {
     try {
-      // For CSV export
-      if (params.format === "csv") {
-        const response = await apiClient.get("/kas/export/csv", {
-          params: {
-            type: params.type,
-            month: params.month,
-            year: params.year,
-            date_from: params.date_from,
-            date_to: params.date_to
-          },
-          responseType: "blob",
-        });
-        return response.data;
+      // Make sure eschoolId is provided
+      if (!params.eschoolId) {
+        throw new Error("Eschool ID is required for export");
       }
-      
-      // For other formats, use the existing endpoint
-      const response = await apiClient.get("/kas/export", {
-        params,
+
+      // For CSV export
+      const response = await apiClient.get(`/kas/export/${params.eschoolId}`, {
+        params: {
+          type: params.type,
+          date_from: params.date_from,
+          date_to: params.date_to
+        },
         responseType: "blob",
       });
       return response.data;

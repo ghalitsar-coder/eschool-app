@@ -81,9 +81,7 @@ const KasManagement: React.FC = () => {
         showExportDialog={showExportDialog}
         setShowExportDialog={setShowExportDialog}
       />
-
-      {/* Update Expense Dialog */}
-      <DialogKasExpense />
+ 
 
       {/* Transaction Details Dialog */}
       <DialogKasDetail

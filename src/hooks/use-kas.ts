@@ -25,15 +25,14 @@ export const useKasRecords = (params?: {
   month?: number;
   year?: number;
   page?: number;
+  per_page?: number;
   eschoolId ?:number;
 }) => {
  
-
- 
   return useQuery({
-    queryKey: [...kasQueryKeys.records, params],
+    queryKey: [...kasQueryKeys.records, {...params}],
     queryFn: async () => {
-    const response = await kasApi.getKasRecords(params);
+      const response = await kasApi.getKasRecords(params);
       return response;
     },
     enabled: !!params?.eschoolId,
@@ -146,6 +145,8 @@ export const useUpdateKasRecord = () => {
 };
 
 export const useExportKasRecords = () => {
+  const { treasurerEschoolId } = useAuth();
+  
   return useMutation({
     mutationFn: async (params: {
       type?: "income" | "expense";
@@ -155,7 +156,10 @@ export const useExportKasRecords = () => {
       date_from?: string;
       date_to?: string;
     }) => {
-      const blob = await kasApi.exportRecords(params);
+      const blob = await kasApi.exportRecords({
+        ...params,
+        eschoolId: treasurerEschoolId
+      });
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -171,13 +175,13 @@ export const useExportKasRecords = () => {
     },
     onSuccess: () => {
       // Show success message
-      
+      toast.success("Export completed successfully");
     },
     onError: (error: any) => {
       console.error("Failed to export kas records:", error?.message);
 
       // Show error message to user
-      alert(`Export failed: ${error?.message || "Unknown error"}`);
+      toast.error(`Export failed: ${error?.message || "Unknown error"}`);
     },
   });
 };
@@ -243,7 +247,12 @@ export const useKasManagement = () => {
     ) => {
       exportRecordsMutation.mutate(params, {
         onSuccess: options?.onSuccess,
-        onError: options?.onError,
+        onError: (error) => {
+          // Call the onError callback if provided
+          if (options?.onError) {
+            options.onError(error);
+          }
+        },
       });
     },
 

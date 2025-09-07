@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 
 import {
   TrendingUp,
   TrendingDown,
   Calendar as CalendarIcon,
   Search,
-  Trash2,
-  ChevronDownIcon,
+  ChevronLeft,
+  ChevronRight,
   Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,9 +53,8 @@ import { useKasRecords } from "@/hooks/use-kas";
 const TransactionRecords = (props) => {
   const { setSelectedRecord, setShowDetailsDialog, isLoadingRecords } = props;
   const { user, treasurerEschoolId } = useAuth();
-  const { data } = useKasRecords({ eschoolId: treasurerEschoolId });
-  console.log(`🚀 ~ TransactionRecords.tsx:57 ~ data:`, data)
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [transactionTypeFilter, setTransactionTypeFilter] =
@@ -63,6 +62,8 @@ const TransactionRecords = (props) => {
   const [dateFilter, setDateFilter] = useState<
     { from: string; to: string } | undefined
   >(undefined);
+  const [monthFilter, setMonthFilter] = useState<number | undefined>(undefined);
+  const [yearFilter, setYearFilter] = useState<number | undefined>(undefined);
   const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
@@ -71,10 +72,22 @@ const TransactionRecords = (props) => {
     direction: "desc",
   });
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  // Derived filter state for API
+  const apiFilters = {
+    eschoolId: treasurerEschoolId,
+    page: currentPage,
+    per_page: itemsPerPage,
+    type: transactionTypeFilter && transactionTypeFilter !== "all" ? transactionTypeFilter : undefined,
+    search: searchTerm || undefined,
+    date_from: dateFilter?.from || undefined,
+    date_to: dateFilter?.to || undefined,
+    month: monthFilter || undefined,
+    year: yearFilter || undefined,
+  };
 
-  const records = [];
+  const { data, isLoading, refetch } = useKasRecords(apiFilters);
+
+  
 
   const handleViewDetails = (record: any) => {
     setSelectedRecord(record);
@@ -88,6 +101,28 @@ const TransactionRecords = (props) => {
     }
     setSortConfig({ key, direction });
   };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setDateFilter(undefined);
+    setTransactionTypeFilter("");
+    setMonthFilter(undefined);
+    setYearFilter(undefined);
+    setDateFilter(undefined);
+  };
+
+  const totalPages = data?.pagination?.last_page || 1;
+  const totalRecords = data?.pagination?.total || 0;
+  const fromRecord = data?.pagination?.from || 0;
+  const toRecord = data?.pagination?.to || 0;
+
+  // Get current year and month for default filters
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
 
   return (
     <div className="px-4 lg:px-6">
@@ -125,11 +160,54 @@ const TransactionRecords = (props) => {
                   <SelectItem value="expense">Expense</SelectItem>
                 </SelectContent>
               </Select>
+              <Select
+                value={monthFilter?.toString() || "all"}
+                onValueChange={(value) =>
+                  setMonthFilter(value === "all" ? undefined : parseInt(value))
+                }
+              >
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Months</SelectItem>
+                  <SelectItem value="1">January</SelectItem>
+                  <SelectItem value="2">February</SelectItem>
+                  <SelectItem value="3">March</SelectItem>
+                  <SelectItem value="4">April</SelectItem>
+                  <SelectItem value="5">May</SelectItem>
+                  <SelectItem value="6">June</SelectItem>
+                  <SelectItem value="7">July</SelectItem>
+                  <SelectItem value="8">August</SelectItem>
+                  <SelectItem value="9">September</SelectItem>
+                  <SelectItem value="10">October</SelectItem>
+                  <SelectItem value="11">November</SelectItem>
+                  <SelectItem value="12">December</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={yearFilter?.toString() || "all"}
+                onValueChange={(value) =>
+                  setYearFilter(value === "all" ? undefined : parseInt(value))
+                }
+              >
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Years</SelectItem>
+                  {Array.from({ length: 10 }, (_, i) => currentYear - 5 + i).map((year) => (
+                    <SelectItem key={year} value={year.toString()}>
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm">
                     <CalendarIcon className="h-4 w-4 mr-2" />
-                    Filter by Date
+                    Date Range
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="end">
@@ -164,11 +242,7 @@ const TransactionRecords = (props) => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  setSearchTerm("");
-                  setDateFilter(undefined);
-                  setTransactionTypeFilter("");
-                }}
+                onClick={handleClearFilters}
               >
                 Clear
               </Button>
@@ -176,150 +250,153 @@ const TransactionRecords = (props) => {
           </div>
         </CardHeader>
         <CardContent>
-          {isLoadingRecords ? (
+          {isLoading || isLoadingRecords ? (
             <div className="space-y-2">
               {[...Array(5)].map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted"
-                    onClick={() => handleSort("date")}
-                  >
-                    <div className="flex items-center">
-                      Date
-                      {sortConfig.key === "date" &&
-                        (sortConfig.direction === "asc" ? " ↑" : " ↓")}
-                    </div>
-                  </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-muted"
-                    onClick={() => handleSort("type")}
-                  >
-                    <div className="flex items-center">
-                      Type
-                      {sortConfig.key === "type" &&
-                        (sortConfig.direction === "asc" ? " ↑" : " ↓")}
-                    </div>
-                  </TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead
-                    className="text-right cursor-pointer hover:bg-muted"
-                    onClick={() => handleSort("amount")}
-                  >
-                    <div className="flex items-center justify-end">
-                      Amount
-                      {sortConfig.key === "amount" &&
-                        (sortConfig.direction === "asc" ? " ↑" : " ↓")}
-                    </div>
-                  </TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.data?.length === 0 ? (
+            <>
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell
-                      colSpan={4}
-                      className="text-center py-8 text-muted-foreground"
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted"
+                      onClick={() => handleSort("date")}
                     >
-                      {searchTerm
-                        ? "No transactions found matching your search."
-                        : "No transactions recorded yet."}
-                    </TableCell>
+                      <div className="flex items-center">
+                        Date
+                        {sortConfig.key === "date" &&
+                          (sortConfig.direction === "asc" ? " ↑" : " ↓")}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="cursor-pointer hover:bg-muted"
+                      onClick={() => handleSort("type")}
+                    >
+                      <div className="flex items-center">
+                        Type
+                        {sortConfig.key === "type" &&
+                          (sortConfig.direction === "asc" ? " ↑" : " ↓")}
+                      </div>
+                    </TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead
+                      className="text-right cursor-pointer hover:bg-muted"
+                      onClick={() => handleSort("amount")}
+                    >
+                      <div className="flex items-center justify-end">
+                        Amount
+                        {sortConfig.key === "amount" &&
+                          (sortConfig.direction === "asc" ? " ↑" : " ↓")}
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ) : (
-                  data?.data?.map((record: any) => (
-                    <TableRow key={record.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                          {new Date(record.date).toLocaleDateString()}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            record.type === "income" ? "default" : "secondary"
-                          }
-                          className={
-                            record.type === "income"
-                              ? "bg-green-100 text-green-800 hover:bg-green-100"
-                              : "bg-red-100 text-red-800 hover:bg-red-100"
-                          }
-                        >
-                          {record.type === "income" ? (
-                            <TrendingUp className="h-3 w-3 mr-1" />
-                          ) : (
-                            <TrendingDown className="h-3 w-3 mr-1" />
-                          )}
-                          {record.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{record.description}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        <span
-                          className={
-                            record.type === "income"
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }
-                        >
-                          {record.type === "income" ? "+" : "-"}Rp{" "}
-                          {record.amount.toLocaleString()}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetails(record)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                </TableHeader>
+                <TableBody>
+                  {data?.data?.length === 0 ? (
+                    <TableRow>
+                      <TableCell
+                        colSpan={4}
+                        className="text-center py-8 text-muted-foreground"
+                      >
+                        {searchTerm
+                          ? "No transactions found matching your search."
+                          : "No transactions recorded yet."}
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
-          {/* Pagination */}
-          {0 > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to{" "}
-                {Math.min(endIndex, filteredAndSortedRecords.length)} of{" "}
-                {filteredAndSortedRecords.length} transactions
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                >
-                  Previous
-                </Button>
-                <div className="text-sm">
-                  Page {currentPage} of {totalPages}
+                  ) : (
+                    data?.data?.map((record: any) => (
+                      <TableRow key={record.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                            {new Date(record.date).toLocaleDateString()}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              record.type === "income" ? "default" : "secondary"
+                            }
+                            className={
+                              record.type === "income"
+                                ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                : "bg-red-100 text-red-800 hover:bg-red-100"
+                            }
+                          >
+                            {record.type === "income" ? (
+                              <TrendingUp className="h-3 w-3 mr-1" />
+                            ) : (
+                              <TrendingDown className="h-3 w-3 mr-1" />
+                            )}
+                            {record.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{record.description}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          <span
+                            className={
+                              record.type === "income"
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }
+                          >
+                            {record.type === "income" ? "+" : "-"}Rp{" "}
+                            {record.amount.toLocaleString()}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDetails(record)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {fromRecord} to {toRecord} of {totalRecords} transactions
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Previous
+                    </Button>
+                    <div className="text-sm">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        handlePageChange(Math.min(totalPages, currentPage + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setCurrentPage(Math.min(totalPages, currentPage + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
