@@ -11,6 +11,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMultiRoleProfile } from "@/hooks/use-multi-role-profile";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RoleSwitcher } from "./RoleSwitcher";
 import {
   User,
   TrendingUp,
@@ -241,21 +242,6 @@ const StudentDashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-6 py-6">
-      {/* Dashboard Header with Role Switcher */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Student Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back, {profileData.user?.name}
-          </p>
-        </div>
-        <RoleSwitcher
-          currentEschoolId={selectedEschoolId || undefined}
-          onEschoolChange={handleEschoolChange}
-        />
-      </div>
-
-      {/* Quick Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
