@@ -8,16 +8,51 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useStaffDashboard } from "@/hooks/use-dashboard";
 import { useMemberProfileData } from "../../../hooks/use-member-profile";
+import { useRole } from "@/contexts/RoleContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, School, TrendingUp, CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const StaffDashboard: React.FC = () => {
-  const { profileData, isLoadingProfile, profileError } = useMemberProfileData();
+  const { selectedRole, selectedEschoolId } = useRole();
+
+  const { overview, isLoadingOverview, overviewError } = useStaffDashboard();
+
+  const { profileData, isLoadingProfile, profileError } =
+    useMemberProfileData();
+
+  // Use dashboard data if available, fallback to profile data
+  const finalData = overview || profileData;
+  const finalIsLoading = isLoadingOverview || isLoadingProfile;
+  const finalError = overviewError || profileError;
+
+  // Show message if user is not a supervisor
+  if (selectedRole !== "supervisor") {
+    return (
+      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+        <div className="px-4 lg:px-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Access Denied</CardTitle>
+              <CardDescription>
+                You need to be a staff member to access this dashboard.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Please switch to your staff role to view overview data.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   // Loading state
-  if (isLoadingProfile) {
+  if (finalIsLoading) {
     return (
       <div className="flex flex-col gap-6 py-6">
         <Card>
@@ -68,16 +103,14 @@ const StaffDashboard: React.FC = () => {
   }
 
   // Error state
-  if (profileError) {
+  if (finalError) {
     return (
       <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
         <div className="px-4 lg:px-6">
           <Card>
             <CardHeader>
               <CardTitle>Error Loading Data</CardTitle>
-              <CardDescription>
-                {profileError?.message}
-              </CardDescription>
+              <CardDescription>{finalError?.message}</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-red-500">
@@ -116,28 +149,28 @@ const StaffDashboard: React.FC = () => {
           <div className="bg-green-50 p-3 rounded-lg">
             <p className="text-sm text-green-700">Total Eschools</p>
             <p className="text-2xl font-bold text-green-900">
-              {profileData?.overview_statistics?.total_eschools || 0}
+              {finalData?.overview_statistics?.total_eschools || 0}
             </p>
           </div>
 
           <div className="bg-blue-50 p-3 rounded-lg">
             <p className="text-sm text-blue-700">Total Members</p>
             <p className="text-2xl font-bold text-blue-900">
-              {profileData?.overview_statistics?.total_members || 0}
+              {finalData?.overview_statistics?.total_members || 0}
             </p>
           </div>
 
           <div className="bg-purple-50 p-3 rounded-lg">
             <p className="text-sm text-purple-700">Avg Attendance</p>
             <p className="text-2xl font-bold text-purple-900">
-              {profileData?.overview_statistics?.average_attendance_rate || 0}%
+              {finalData?.overview_statistics?.average_attendance_rate || 0}%
             </p>
           </div>
 
           <div className="bg-orange-50 p-3 rounded-lg">
             <p className="text-sm text-orange-700">Collection Rate</p>
             <p className="text-2xl font-bold text-orange-900">
-              {profileData?.overview_statistics?.overall_collection_rate || 0}%
+              {finalData?.overview_statistics?.overall_collection_rate || 0}%
             </p>
           </div>
         </CardContent>
@@ -150,7 +183,7 @@ const StaffDashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {profileData?.eschool_breakdown?.map(
+            {finalData?.eschool_breakdown?.map(
               (eschool: any, index: number) => (
                 <div key={index} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start mb-2">

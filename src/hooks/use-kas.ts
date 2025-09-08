@@ -26,22 +26,28 @@ export const useKasRecords = (params?: {
   year?: number;
   page?: number;
   per_page?: number;
-  eschoolId ?:number;
+  eschoolId?: number;
 }) => {
- 
+  const { treasurerEschoolId } = useAuth();
+  const finalEschoolId = params?.eschoolId || treasurerEschoolId;
+
   return useQuery({
-    queryKey: [...kasQueryKeys.records, {...params}],
+    queryKey: [
+      ...kasQueryKeys.records,
+      { ...params, eschoolId: finalEschoolId },
+    ],
     queryFn: async () => {
-      const response = await kasApi.getKasRecords(params);
+      const response = await kasApi.getKasRecords({
+        ...params,
+        eschoolId: finalEschoolId,
+      });
       return response;
     },
-    enabled: !!params?.eschoolId,
+    enabled: !!finalEschoolId,
   });
 };
 
 export const useKasSummary = () => {
- 
-
   return useQuery({
     queryKey: kasQueryKeys.summary,
     queryFn: async () => {
@@ -54,12 +60,10 @@ export const useKasSummary = () => {
 
 export const useMembers = () => {
   const { treasurerEschoolId } = useAuth();
-  
 
   return useQuery({
     queryKey: kasQueryKeys.members,
     queryFn: async () => {
-     
       const response = await memberApi.getMembersByEschool(treasurerEschoolId);
       return response;
     },
@@ -67,7 +71,7 @@ export const useMembers = () => {
     select: (data) => {
       // Transform the data to match what the components expect
       return data?.data?.members || [];
-    }
+    },
   });
 };
 
@@ -146,7 +150,7 @@ export const useUpdateKasRecord = () => {
 
 export const useExportKasRecords = () => {
   const { treasurerEschoolId } = useAuth();
-  
+
   return useMutation({
     mutationFn: async (params: {
       type?: "income" | "expense";
@@ -158,14 +162,16 @@ export const useExportKasRecords = () => {
     }) => {
       const blob = await kasApi.exportRecords({
         ...params,
-        eschoolId: treasurerEschoolId
+        eschoolId: treasurerEschoolId,
       });
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `kas-records-${new Date().toISOString().split("T")[0]}.${params.format || "csv"}`;
+      link.download = `kas-records-${new Date().toISOString().split("T")[0]}.${
+        params.format || "csv"
+      }`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

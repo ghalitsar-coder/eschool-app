@@ -1,13 +1,10 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useRouter } from "next/navigation";
-import BendaharaDashboard from "./components/BendaharaDashboard";
 import KoordinatorDashboard from "./components/KoordinatorDashboard";
 import StaffDashboard from "./components/StaffDashboard";
-import SiswaDashboard from "./components/SiswaDashboard";
-import StudentDashboardProfessional from "./components/StudentDashboardProfessional";
+import MultiRoleDashboard from "./components/MultiRoleDashboard";
 import {
   Card,
   CardContent,
@@ -16,17 +13,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, User } from "lucide-react";
+import { User } from "lucide-react";
 
 export default function Page() {
-  const { user, isLoadingUser, isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
-  // Handle redirect based on user role
- 
+  console.log(`THIS IS  ~ user:`, user);
 
-  // Loading state
-  if (isLoadingUser) {
+  // Loading state - check if user data is still being fetched
+  if (isAuthenticated && !user) {
     return (
       <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
         <div className="px-4 lg:px-6">
@@ -37,7 +32,7 @@ export default function Page() {
             </div>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
@@ -65,36 +60,60 @@ export default function Page() {
     );
   }
 
-  // Render dashboard based on user role
-  switch (user.role) {
-    case "bendahara":
-      return <BendaharaDashboard />;
-    case "koordinator":
-      return <KoordinatorDashboard />;
-    case "staff":
-      return <StaffDashboard />;
-    case "siswa":
-      // Use the professional dashboard for students with multiple roles
-      return <StudentDashboardProfessional />;
-    default:
-      return (
-        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-          <div className="px-4 lg:px-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Unsupported Role</CardTitle>
-                <CardDescription>
-                  Your role "{user.role}" is not supported in the dashboard yet.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-red-500">
-                  Failed to load dashboard for role {user.role}. Please contact administrator.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      );
+  // Get user roles
+  const userRoles = user.roles?.map((role) => role.role) || [];
+
+  // Determine dashboard type based on roles
+  const hasCoordinator = userRoles.includes("coordinator");
+  const hasSupervisor = userRoles.includes("supervisor");
+  const hasTreasurer = userRoles.includes("treasurer");
+  const hasMember = userRoles.includes("member");
+
+  // Priority: supervisor > coordinator > multi-role (treasurer/member)
+  if (hasSupervisor) {
+    return <StaffDashboard />;
   }
+
+  if (hasCoordinator) {
+    return <KoordinatorDashboard />;
+  }
+
+  if (hasTreasurer || hasMember) {
+    return <MultiRoleDashboard />;
+  }
+
+  // Fallback for unsupported roles
+  return (
+    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+      <div className="px-4 lg:px-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>No Dashboard Available</CardTitle>
+            <CardDescription>
+              No suitable dashboard found for your current roles.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              Please contact administrator if you believe this is an error.
+            </p>
+            <div className="mt-4">
+              <p className="text-sm text-muted-foreground">Your roles:</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {userRoles.map((role, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-muted rounded-md text-sm"
+                  >
+                    {role}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 }
+ 

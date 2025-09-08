@@ -72,7 +72,10 @@ interface UseCreateAttendanceReturn {
 }
 
 interface UseUpdateAttendanceReturn {
-  updateAttendance: (params: { id: number; data: Partial<AttendanceFormData> }) => Promise<void>;
+  updateAttendance: (params: {
+    id: number;
+    data: Partial<AttendanceFormData>;
+  }) => Promise<void>;
   isUpdating: boolean;
   updateError: Error | null;
 }
@@ -182,7 +185,6 @@ export const useAttendanceAnalytics = (
 // Hook to fetch members for attendance using new multi-role API
 export const useAttendanceMembers = (): UseMembersReturn => {
   const { user } = useAuth();
-  
 
   const { data, isLoading, error } = useQuery<AttendanceMember[], Error>({
     queryKey: ["attendance-members", user?.eschool_id],
@@ -191,8 +193,10 @@ export const useAttendanceMembers = (): UseMembersReturn => {
         throw new Error("No eschool ID found");
       }
       // Use the new multi-role attendance members API
-      const response = await attendanceApi.getAttendanceMembers(user.eschool_id);
-      
+      const response = await attendanceApi.getAttendanceMembers(
+        user.eschool_id
+      );
+
       return response || [];
     },
     enabled: !!user?.eschool_id,
@@ -215,7 +219,10 @@ export const useCreateAttendance = (): UseCreateAttendanceReturn => {
       if (!user?.eschool_id) {
         throw new Error("No eschool ID found");
       }
-      const response = await attendanceApi.recordAttendance(user.eschool_id, data);
+      const response = await attendanceApi.recordAttendance(
+        user.eschool_id,
+        data
+      );
       return response.data;
     },
     onSuccess: () => {
@@ -242,11 +249,21 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending, error } = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<AttendanceFormData> }) => {
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Partial<AttendanceFormData>;
+    }) => {
       if (!user?.eschool_id) {
         throw new Error("No eschool ID found");
       }
-      const response = await attendanceApi.updateAttendance(user.eschool_id, id, data);
+      const response = await attendanceApi.updateAttendance(
+        user.eschool_id,
+        id,
+        data
+      );
       return response;
     },
     onSuccess: () => {
@@ -263,7 +280,10 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
     },
   });
 
-  const updateAttendance = async (params: { id: number; data: Partial<AttendanceFormData> }): Promise<void> => {
+  const updateAttendance = async (params: {
+    id: number;
+    data: Partial<AttendanceFormData>;
+  }): Promise<void> => {
     await mutateAsync(params);
   };
 
@@ -284,7 +304,10 @@ export const useDeleteAttendance = (): UseDeleteAttendanceReturn => {
       if (!user?.eschool_id) {
         throw new Error("No eschool ID found");
       }
-      const response = await attendanceApi.deleteAttendance(user.eschool_id, id);
+      const response = await attendanceApi.deleteAttendance(
+        user.eschool_id,
+        id
+      );
       return response;
     },
     onSuccess: () => {
@@ -322,14 +345,39 @@ export const useAttendanceManagement = (
   // Use all the individual hooks with filter params
   const { records, meta, isLoadingRecords, recordsError, refetchRecords } =
     useAttendance(filterParams);
+
+  // Import dashboard hooks for better performance
   const {
     statistics,
+    analytics,
     isLoadingStatistics,
+    isLoadingAnalytics,
     statisticsError,
+    analyticsError,
     refetchStatistics,
-  } = useAttendanceStatistics();
-  const { analytics, isLoadingAnalytics, analyticsError, refetchAnalytics } =
-    useAttendanceAnalytics(analyticsParams);
+    refetchAnalytics,
+  } = (() => {
+    try {
+      // Try to use dashboard hooks if available
+      const { useCoordinatorDashboard } = require("@/hooks/use-dashboard");
+      return useCoordinatorDashboard(analyticsParams);
+    } catch {
+      // Fallback to original hooks
+      const statisticsQuery = useAttendanceStatistics();
+      const analyticsQuery = useAttendanceAnalytics(analyticsParams);
+      return {
+        statistics: statisticsQuery.statistics,
+        analytics: analyticsQuery.analytics,
+        isLoadingStatistics: statisticsQuery.isLoadingStatistics,
+        isLoadingAnalytics: analyticsQuery.isLoadingAnalytics,
+        statisticsError: statisticsQuery.statisticsError,
+        analyticsError: analyticsQuery.analyticsError,
+        refetchStatistics: statisticsQuery.refetchStatistics,
+        refetchAnalytics: analyticsQuery.refetchAnalytics,
+      };
+    }
+  })();
+
   const { members, isLoadingMembers, membersError } = useAttendanceMembers();
   const { createAttendance, isCreating, createError } = useCreateAttendance();
   const { updateAttendance, isUpdating, updateError } = useUpdateAttendance();
@@ -356,7 +404,9 @@ export const useAttendanceManagement = (
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
-      const fileName = `attendance_records_${new Date().toISOString().split("T")[0]}.${params.format || "csv"}`;
+      const fileName = `attendance_records_${
+        new Date().toISOString().split("T")[0]
+      }.${params.format || "csv"}`;
       link.href = url;
       link.download = fileName;
       document.body.appendChild(link);

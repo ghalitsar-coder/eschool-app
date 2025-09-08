@@ -8,7 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useCoordinatorDashboard } from "@/hooks/use-dashboard";
 import { useAttendanceManagement } from "@/hooks/use-attendance";
+import { useRole } from "@/contexts/RoleContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart,
@@ -30,6 +32,8 @@ import { format } from "date-fns";
 import { CheckCircle2, CalendarIcon, Users, TrendingUp } from "lucide-react";
 
 const KoordinatorDashboard: React.FC = () => {
+  const { selectedRole, selectedEschoolId } = useRole();
+
   const {
     statistics,
     analytics,
@@ -37,7 +41,30 @@ const KoordinatorDashboard: React.FC = () => {
     isLoadingAnalytics,
     statisticsError,
     analyticsError,
-  } = useAttendanceManagement();
+  } = useCoordinatorDashboard();
+
+  // Show message if user is not a coordinator
+  if (selectedRole !== "coordinator") {
+    return (
+      <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+        <div className="px-4 lg:px-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Access Denied</CardTitle>
+              <CardDescription>
+                You need to be a coordinator to access this dashboard.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">
+                Please switch to your coordinator role to view attendance data.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   // Loading state
   if (isLoadingStatistics || isLoadingAnalytics) {
@@ -77,7 +104,9 @@ const KoordinatorDashboard: React.FC = () => {
             <CardHeader>
               <CardTitle>Error Loading Data</CardTitle>
               <CardDescription>
-                {statisticsError?.message || analyticsError?.message || "Unknown error occurred"}
+                {statisticsError?.message ||
+                  analyticsError?.message ||
+                  "Unknown error occurred"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -167,9 +196,7 @@ const KoordinatorDashboard: React.FC = () => {
         </Card>
         <Card className="@container/card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              This Month
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">This Month</CardTitle>
             <CalendarIcon className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
@@ -183,9 +210,7 @@ const KoordinatorDashboard: React.FC = () => {
         </Card>
         <Card className="@container/card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Members
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Total Members</CardTitle>
             <Users className="h-4 w-4 text-indigo-600" />
           </CardHeader>
           <CardContent>
@@ -301,11 +326,7 @@ const KoordinatorDashboard: React.FC = () => {
                         <YAxis />
                         <Tooltip content={<CustomTooltip />} />
                         <Legend />
-                        <Bar
-                          dataKey="present"
-                          name="Present"
-                          fill="#10B981"
-                        />
+                        <Bar dataKey="present" name="Present" fill="#10B981" />
                         <Bar dataKey="absent" name="Absent" fill="#EF4444" />
                       </BarChart>
                     </ResponsiveContainer>
@@ -347,20 +368,18 @@ const KoordinatorDashboard: React.FC = () => {
                           name="Attendance Rate"
                           fill="#3B82F6"
                         >
-                          {analytics?.member_attendance?.map(
-                            (entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={
-                                  entry.attendance_rate >= 90
-                                    ? "#10B981"
-                                    : entry.attendance_rate >= 75
-                                    ? "#F59E0B"
-                                    : "#EF4444"
-                                  }
-                              />
-                            )
-                          )}
+                          {analytics?.member_attendance?.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={
+                                entry.attendance_rate >= 90
+                                  ? "#10B981"
+                                  : entry.attendance_rate >= 75
+                                  ? "#F59E0B"
+                                  : "#EF4444"
+                              }
+                            />
+                          ))}
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
@@ -386,10 +405,7 @@ const KoordinatorDashboard: React.FC = () => {
                       <XAxis dataKey="short_day" />
                       <YAxis domain={[0, 100]} />
                       <Tooltip
-                        formatter={(value) => [
-                          `${value}%`,
-                          "Attendance Rate",
-                        ]}
+                        formatter={(value) => [`${value}%`, "Attendance Rate"]}
                         labelFormatter={(value) => `Day: ${value}`}
                       />
                       <Legend />

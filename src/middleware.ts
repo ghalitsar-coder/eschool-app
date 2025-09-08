@@ -4,7 +4,6 @@ import type { NextRequest } from "next/server";
 export async function middleware(request: NextRequest) {
   // Get the pathname of the request (e.g. /, /dashboard, /login)
   const path = request.nextUrl.pathname;
-  
 
   // Define paths that require authentication
   const protectedPaths = ["/dashboard"];
@@ -14,37 +13,35 @@ export async function middleware(request: NextRequest) {
     path.startsWith(protectedPath)
   );
 
-  // Get auth token from cookies (we're using httpOnly cookies now)
+  // Get auth tokens from cookies
   const authToken = request.cookies.get("token")?.value;
+  console.log(`THIS IS  ~ authToken:`, authToken)
   const refreshToken = request.cookies.get("refresh_token")?.value;
-
-  
+  console.log(`THIS IS  ~ refreshToken:`, refreshToken)
 
   // If it's a protected path
   if (isProtectedPath) {
+    // CHANGED: If we have either token OR refresh token, allow access
+    // Let the API client handle the refresh logic
+    if (authToken || refreshToken) {
+      // User has some form of authentication, let them through
+      // API client will handle token refresh if needed
+      return NextResponse.next();
+    }
 
-
-    // If NO auth token, redirect to login
+    // Only redirect to login if NO tokens at all
     if (!authToken && !refreshToken) {
-      
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", path);
       return NextResponse.redirect(loginUrl);
     }
-    
-
-
-
-    // User has auth token, allow access
-    
-    return NextResponse.next();
   }
 
-  // If user has auth token and trying to access login page, redirect to dashboard
+  // If user is authenticated and trying to access login page
   if (authToken && path === "/login") {
-    
     // Get redirect URL from query params or default to dashboard
-    const redirectUrl = request.nextUrl.searchParams.get("redirect") || "/dashboard";
+    const redirectUrl =
+      request.nextUrl.searchParams.get("redirect") || "/dashboard";
     return NextResponse.redirect(new URL(redirectUrl, request.url));
   }
 

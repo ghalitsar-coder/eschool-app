@@ -37,7 +37,6 @@ export const useRegister = () => {
     mutationFn: authApi.register,
     onSuccess: (data) => {
       if (data.data) {
-        
       } else {
         throw new Error(data.message || "Registrasi gagal");
       }
@@ -100,7 +99,6 @@ export const useChangePassword = () => {
     mutationFn: authApi.changePassword,
     onSuccess: (data) => {
       if (data.data) {
-        
       } else {
         throw new Error(data.message || "Gagal mengubah password");
       }
@@ -135,8 +133,15 @@ export const useRefreshToken = () => {
 
 // Hook to access authentication state and actions
 export const useAuth = () => {
-  const { user, isAuthenticated, login, logout, updateUser, setUser, setToken } =
-    useAuthStore();
+  const {
+    user,
+    isAuthenticated,
+    login,
+    logout,
+    updateUser,
+    setUser,
+    setToken,
+  } = useAuthStore();
 
   // Check if user has a specific role
   const hasRole = (role: string) => {
@@ -145,7 +150,9 @@ export const useAuth = () => {
 
   // Check if user has any of the specified roles
   const hasAnyRole = (roles: string[]) => {
-    return user?.roles?.some((userRole) => roles.includes(userRole.role)) || false;
+    return (
+      user?.roles?.some((userRole) => roles.includes(userRole.role)) || false
+    );
   };
 
   // Get user's eschool ID for a specific role
@@ -157,6 +164,19 @@ export const useAuth = () => {
   // Get all eschool IDs for user's roles
   const getAllEschoolIds = () => {
     return user?.roles?.map((userRole) => userRole.eschool_id) || [];
+  };
+
+  // Get user's primary role (highest priority)
+  const getPrimaryRole = () => {
+    if (!user?.roles || user.roles.length === 0) return null;
+
+    // Priority order: supervisor > coordinator > treasurer > member
+    const priorityOrder = ["supervisor", "coordinator", "treasurer", "member"];
+    const primaryRole = priorityOrder.find((role) =>
+      user.roles.some((userRole) => userRole.role === role)
+    );
+
+    return primaryRole || user.roles[0].role;
   };
 
   // Check if user is a staff member
@@ -171,7 +191,16 @@ export const useAuth = () => {
   // Check if user is a regular member
   const isMember = hasRole("member");
 
-  const treasurerEschoolId =  user?.roles.find(data => data.role == "treasurer")?.eschool_id
+  // Get specific role data
+  const treasurerEschoolId = user?.roles?.find(
+    (data) => data.role === "treasurer"
+  )?.eschool_id;
+  const coordinatorEschoolId = user?.roles?.find(
+    (data) => data.role === "coordinator"
+  )?.eschool_id;
+  const supervisorEschoolId = user?.roles?.find(
+    (data) => data.role === "supervisor"
+  )?.eschool_id;
 
   return {
     // User data
@@ -181,11 +210,16 @@ export const useAuth = () => {
     // Role checks
     hasRole,
     hasAnyRole,
+    getPrimaryRole,
     isStaff,
     isKoordinator,
     isBendahara,
     isMember,
-    treasurerEschoolId,  
+
+    // Eschool IDs for specific roles
+    treasurerEschoolId,
+    coordinatorEschoolId,
+    supervisorEschoolId,
     getEschoolIdForRole,
     getAllEschoolIds,
     // Actions

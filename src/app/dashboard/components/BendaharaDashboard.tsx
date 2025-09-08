@@ -8,11 +8,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useBendaharaDashboard } from "@/hooks/use-dashboard";
 import { useKasManagement } from "@/hooks/use-kas";
+
 import FinancialTrend from "../kas/components/FinancialTrend";
 import FinancialCharts from "../kas/components/FinancialCharts";
 
 const BendaharaDashboard: React.FC = () => {
+  const {
+    summary: dashboardSummary,
+    isLoadingSummary: isLoadingDashboardSummary,
+    summaryError: dashboardSummaryError,
+  } = useBendaharaDashboard();
+
   const {
     records,
     summary,
@@ -22,8 +30,13 @@ const BendaharaDashboard: React.FC = () => {
     summaryError,
   } = useKasManagement();
 
+  // Use dashboard summary if available, fallback to kas management summary
+  const finalSummary = dashboardSummary || summary;
+  const finalIsLoadingSummary = isLoadingDashboardSummary || isLoadingSummary;
+  const finalSummaryError = dashboardSummaryError || summaryError;
+
   // Loading state
-  if (isLoadingRecords || isLoadingSummary) {
+  if (isLoadingRecords || finalIsLoadingSummary) {
     return (
       <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
         <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
@@ -51,9 +64,7 @@ const BendaharaDashboard: React.FC = () => {
   }
 
   // Error state
-  const hasErrors =
-    recordsError ||
-    summaryError;
+  const hasErrors = recordsError || finalSummaryError;
   if (hasErrors) {
     return (
       <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
@@ -62,7 +73,9 @@ const BendaharaDashboard: React.FC = () => {
             <CardHeader>
               <CardTitle>Error Loading Data</CardTitle>
               <CardDescription>
-                {recordsError?.message || summaryError?.message || "Unknown error occurred"}
+                {recordsError?.message ||
+                  finalSummaryError?.message ||
+                  "Unknown error occurred"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -91,11 +104,11 @@ const BendaharaDashboard: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <FinancialCharts 
-              summary={summary} 
-              records={records} 
-              isLoading={isLoadingRecords || isLoadingSummary}
-              error={recordsError || summaryError}
+            <FinancialCharts
+              summary={finalSummary}
+              records={records}
+              isLoading={isLoadingRecords || finalIsLoadingSummary}
+              error={recordsError || finalSummaryError}
             />
           </CardContent>
         </Card>

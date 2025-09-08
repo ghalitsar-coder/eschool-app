@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Select,
   SelectContent,
@@ -8,99 +9,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  User,
-  School,
-  Wallet,
-  Users,
-  ChevronDown,
-  BadgeDollarSign,
-  CalendarCheck,
-} from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
-
-interface EschoolRole {
-  eschool_id: number;
-  eschool_name: string;
-  eschool_description: string;
-  role_in_eschool: string;
-  role_status: string;
-  permissions: string[];
-  assigned_at: string;
-}
+import { Wallet, Users, School, UserCheck } from "lucide-react";
 
 interface RoleSwitcherProps {
   currentEschoolId?: number;
   onEschoolChange?: (eschoolId: number, role: string) => void;
+  className?: string;
 }
 
 const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   currentEschoolId,
   onEschoolChange,
+  className = "",
 }) => {
   const { user } = useAuth();
-  const router = useRouter();
-  const [selectedEschoolId, setSelectedEschoolId] = useState<
-    number | undefined
-  >(currentEschoolId);
 
-  // Get unique roles from user's eschools
-  const getUniqueRoles = () => {
-    if (!user?.eschools) return [];
-    const roles = user.eschools.map((eschool) => eschool.role_in_eschool);
-    return [...new Set(roles)];
-  };
+  if (!user || !user.roles || user.roles.length <= 1) {
+    return null;
+  }
 
-  // Get eschools for a specific role
-  const getEschoolsByRole = (role: string) => {
-    if (!user?.eschools) return [];
-    return user.eschools.filter((eschool) => eschool.role_in_eschool === role);
-  };
+  const userRoles = user.roles;
 
-  // Handle eschool selection
-  const handleEschoolSelect = (eschoolId: string) => {
-    const id = parseInt(eschoolId);
-    setSelectedEschoolId(id);
-
-    // Find the selected eschool to get the role
-    const selectedEschool = user?.eschools?.find(
-      (eschool) => eschool.eschool_id === id
-    );
-    if (selectedEschool && onEschoolChange) {
-      onEschoolChange(id, selectedEschool.role_in_eschool);
-    }
-  };
-
-  // Get role icon
   const getRoleIcon = (role: string) => {
-    switch (role.toLowerCase()) {
-      case "bendahara":
+    switch (role) {
+      case "treasurer":
         return <Wallet className="h-4 w-4" />;
-      case "koordinator":
+      case "coordinator":
+        return <UserCheck className="h-4 w-4" />;
+      case "supervisor":
         return <Users className="h-4 w-4" />;
       case "member":
-        return <User className="h-4 w-4" />;
+        return <School className="h-4 w-4" />;
       default:
-        return <User className="h-4 w-4" />;
+        return <Users className="h-4 w-4" />;
     }
   };
 
-  // Get role label
   const getRoleLabel = (role: string) => {
-    switch (role.toLowerCase()) {
-      case "bendahara":
+    switch (role) {
+      case "treasurer":
         return "Bendahara";
-      case "koordinator":
+      case "coordinator":
         return "Koordinator";
+      case "supervisor":
+        return "Staff";
       case "member":
         return "Member";
       default:
@@ -108,94 +61,63 @@ const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
     }
   };
 
-  // Get role badge variant
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role.toLowerCase()) {
-      case "bendahara":
-        return "default";
-      case "koordinator":
-        return "secondary";
-      case "member":
-        return "outline";
-      default:
-        return "default";
+  const handleRoleChange = (value: string) => {
+    const [eschoolId, role] = value.split("-");
+    if (onEschoolChange) {
+      onEschoolChange(parseInt(eschoolId), role);
     }
   };
 
-  if (!user?.eschools || user.eschools.length === 0) {
-    return null;
-  }
+  const currentValue = currentEschoolId
+    ? `${currentEschoolId}-${
+        userRoles.find((r) => r.eschool_id === currentEschoolId)?.role
+      }`
+    : "";
 
   return (
-    <div className="flex items-center gap-4">
-      {/* Role Switcher - Only show if user has multiple roles */}
-      {getUniqueRoles().length > 1 && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Role:</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                {getRoleIcon(user.role)}
-                <span>{getRoleLabel(user.role)}</span>
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {getUniqueRoles().map((role) => (
-                <DropdownMenuItem
-                  key={role}
-                  onClick={() => {
-                    // For now, we'll just update the primary role
-                    // In a real implementation, you might want to refresh user data
-                  }}
-                  className="gap-2"
-                >
-                  {getRoleIcon(role)}
-                  {getRoleLabel(role)}
-                  {getEschoolsByRole(role).length > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {getEschoolsByRole(role).length}
-                    </Badge>
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
-
-      {/* Eschool Switcher */}
+    <div className={`flex items-center gap-4 ${className}`}>
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Eschool:</span>
-        <Select
-          value={selectedEschoolId?.toString() || ""}
-          onValueChange={handleEschoolSelect}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select eschool" />
+        <span className="text-sm font-medium">Switch Role:</span>
+        <Select value={currentValue} onValueChange={handleRoleChange}>
+          <SelectTrigger className="w-[250px]">
+            <SelectValue placeholder="Select role and eschool" />
           </SelectTrigger>
           <SelectContent>
-            {user.eschools.map((eschool) => (
+            {userRoles.map((roleData) => (
               <SelectItem
-                key={eschool.eschool_id}
-                value={eschool.eschool_id.toString()}
+                key={`${roleData.eschool_id}-${roleData.role}`}
+                value={`${roleData.eschool_id}-${roleData.role}`}
               >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <School className="h-4 w-4" />
-                    <span>{eschool.eschool_name}</span>
+                <div className="flex items-center gap-2">
+                  {getRoleIcon(roleData.role)}
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {getRoleLabel(roleData.role)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {roleData.eschool_name}
+                    </span>
                   </div>
-                  <Badge
-                    variant={getRoleBadgeVariant(eschool.role_in_eschool)}
-                    className="ml-2"
-                  >
-                    {getRoleLabel(eschool.role_in_eschool)}
-                  </Badge>
                 </div>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Current roles badges */}
+      <div className="flex flex-wrap gap-1">
+        {userRoles.map((roleData, index) => (
+          <Badge
+            key={index}
+            variant={
+              roleData.eschool_id === currentEschoolId ? "default" : "outline"
+            }
+            className="text-xs"
+          >
+            {getRoleLabel(roleData.role)}
+          </Badge>
+        ))}
       </div>
     </div>
   );

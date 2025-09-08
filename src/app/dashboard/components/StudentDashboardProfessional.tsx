@@ -8,29 +8,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMultiRoleProfile } from "@/hooks/use-multi-role-profile";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  User, 
-  TrendingUp, 
-  School, 
-  Users, 
+import {
+  User,
+  TrendingUp,
+  School,
+  Users,
   Calendar,
   Wallet,
   BarChart3,
   PieChart,
   ChevronRight,
   CalendarCheck,
-  BadgeDollarSign
+  BadgeDollarSign,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { 
+import {
   BarChart,
   Bar,
   PieChart as RechartsPieChart,
@@ -41,9 +36,9 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
+  Legend,
 } from "recharts";
-import RoleSwitcher from "./RoleSwitcher";
+// import RoleSwitcher from "./RoleSwitcher"; // Not needed in this context
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
@@ -51,15 +46,13 @@ import { useRouter } from "next/navigation";
 import type { MultiRoleProfileData } from "@/hooks/use-multi-role-profile";
 
 const StudentDashboard: React.FC = () => {
-  const { 
-    profileData, 
-    isLoadingProfile, 
-    profileError 
-  } = useMultiRoleProfile();
-  
+  const { profileData, isLoadingProfile, profileError } = useMultiRoleProfile();
+
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
-  const [selectedEschoolId, setSelectedEschoolId] = useState<number | null>(null);
+  const [selectedEschoolId, setSelectedEschoolId] = useState<number | null>(
+    null
+  );
 
   // Loading state
   if (isLoadingProfile) {
@@ -73,14 +66,14 @@ const StudentDashboard: React.FC = () => {
           </div>
           <Skeleton className="h-10 w-64" />
         </div>
-        
+
         <Tabs defaultValue="overview" className="w-full">
           <TabsList>
             <Skeleton className="h-10 w-24 mr-2" />
             <Skeleton className="h-10 w-24 mr-2" />
             <Skeleton className="h-10 w-24" />
           </TabsList>
-          
+
           <TabsContent value="overview">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               <Card>
@@ -107,7 +100,7 @@ const StudentDashboard: React.FC = () => {
                 </CardContent>
               </Card>
             </div>
-            
+
             <Card className="mt-6">
               <CardHeader>
                 <Skeleton className="h-6 w-48" />
@@ -206,31 +199,41 @@ const StudentDashboard: React.FC = () => {
   };
 
   // Get the selected eschool data
-  const selectedEschool = selectedEschoolId 
-    ? profileData.eschool_roles.find(role => role.eschool_id === selectedEschoolId)
+  const selectedEschool = selectedEschoolId
+    ? profileData.eschool_roles.find(
+        (role) => role.eschool_id === selectedEschoolId
+      )
     : null;
 
   // Generate chart data for attendance comparison
-  const attendanceComparisonData = profileData.eschool_roles?.map(role => ({
-    name: role.eschool_name,
-    attendance: role.attendance_summary.attendance_rate,
-    meetings: role.attendance_summary.total_meetings,
-    attended: role.attendance_summary.attended
-  })) || [];
+  const attendanceComparisonData =
+    profileData.eschool_roles?.map((role) => ({
+      name: role.eschool_name,
+      attendance: role.attendance_summary.attendance_rate,
+      meetings: role.attendance_summary.total_meetings,
+      attended: role.attendance_summary.attended,
+    })) || [];
 
   // Generate chart data for kas comparison
-  const kasComparisonData = profileData.eschool_roles?.map(role => ({
-    name: role.eschool_name,
-    paid: role.kas_summary.personal_balance || 0,
-    target: role.kas_summary.monthly_target || 0,
-    collectionRate: role.kas_summary.collection_rate || 0
-  })) || [];
+  const kasComparisonData =
+    profileData.eschool_roles?.map((role) => ({
+      name: role.eschool_name,
+      paid: role.kas_summary.personal_balance || 0,
+      target: role.kas_summary.monthly_target || 0,
+      collectionRate: role.kas_summary.collection_rate || 0,
+    })) || [];
 
   // Generate role distribution data
   const roleDistributionData = [
-    { name: "Bendahara", value: profileData.overall_summary.roles.bendahara || 0 },
-    { name: "Koordinator", value: profileData.overall_summary.roles.koordinator || 0 },
-    { name: "Member", value: profileData.overall_summary.roles.member || 0 }
+    {
+      name: "Bendahara",
+      value: profileData.overall_summary.roles.bendahara || 0,
+    },
+    {
+      name: "Koordinator",
+      value: profileData.overall_summary.roles.koordinator || 0,
+    },
+    { name: "Member", value: profileData.overall_summary.roles.member || 0 },
   ];
 
   // COLORS for charts
@@ -246,9 +249,9 @@ const StudentDashboard: React.FC = () => {
             Welcome back, {profileData.user?.name}
           </p>
         </div>
-        <RoleSwitcher 
-          currentEschoolId={selectedEschoolId || undefined} 
-          onEschoolChange={handleEschoolChange} 
+        <RoleSwitcher
+          currentEschoolId={selectedEschoolId || undefined}
+          onEschoolChange={handleEschoolChange}
         />
       </div>
 
@@ -256,49 +259,68 @@ const StudentDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Eschools</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Eschools
+            </CardTitle>
             <School className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{profileData.overall_summary?.total_eschools || 0}</div>
+            <div className="text-2xl font-bold">
+              {profileData.overall_summary?.total_eschools || 0}
+            </div>
             <p className="text-xs text-muted-foreground">Active memberships</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Attendance</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Avg Attendance
+            </CardTitle>
             <CalendarCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {profileData.overall_summary?.performance?.avg_attendance_rate || 0}%
+              {profileData.overall_summary?.performance?.avg_attendance_rate ||
+                0}
+              %
             </div>
             <p className="text-xs text-muted-foreground">Across all eschools</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Kas Paid</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Kas Paid
+            </CardTitle>
             <BadgeDollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {formatCurrency(profileData.overall_summary?.performance?.total_personal_kas || 0)}
+              {formatCurrency(
+                profileData.overall_summary?.performance?.total_personal_kas ||
+                  0
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">Personal contributions</p>
+            <p className="text-xs text-muted-foreground">
+              Personal contributions
+            </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Activity Score</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Activity Score
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {profileData.overall_summary?.performance?.overall_activity_score || 0}%
+              {profileData.overall_summary?.performance
+                ?.overall_activity_score || 0}
+              %
             </div>
             <p className="text-xs text-muted-foreground">Participation level</p>
           </CardContent>
@@ -309,7 +331,10 @@ const StudentDashboard: React.FC = () => {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {profileData.eschool_roles?.map((role) => (
-            <TabsTrigger key={role.eschool_id} value={`eschool-${role.eschool_id}`}>
+            <TabsTrigger
+              key={role.eschool_id}
+              value={`eschool-${role.eschool_id}`}
+            >
               {role.eschool_name}
             </TabsTrigger>
           ))}
@@ -332,8 +357,12 @@ const StudentDashboard: React.FC = () => {
                     <User className="h-8 w-8" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-lg">{profileData.user?.name}</h3>
-                    <p className="text-muted-foreground text-sm">{profileData.user?.email}</p>
+                    <h3 className="font-medium text-lg">
+                      {profileData.user?.name}
+                    </h3>
+                    <p className="text-muted-foreground text-sm">
+                      {profileData.user?.email}
+                    </p>
                     <Badge variant="secondary" className="mt-1">
                       {profileData.user?.base_role}
                     </Badge>
@@ -342,18 +371,27 @@ const StudentDashboard: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-4 pt-4">
                   <div>
-                    <p className="text-muted-foreground text-sm">Total Eschools</p>
-                    <p className="font-medium">{profileData.overall_summary?.total_eschools || 0}</p>
+                    <p className="text-muted-foreground text-sm">
+                      Total Eschools
+                    </p>
+                    <p className="font-medium">
+                      {profileData.overall_summary?.total_eschools || 0}
+                    </p>
                   </div>
                   <div>
                     <p className="text-muted-foreground text-sm">Roles</p>
                     <div className="flex flex-wrap gap-1">
-                      {Object.entries(profileData.overall_summary.roles).map(([role, count]) => 
-                        count > 0 && (
-                          <Badge key={role} variant="outline" className="text-xs">
-                            {role} ({count})
-                          </Badge>
-                        )
+                      {Object.entries(profileData.overall_summary.roles).map(
+                        ([role, count]) =>
+                          count > 0 && (
+                            <Badge
+                              key={role}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              {role} ({count})
+                            </Badge>
+                          )
                       )}
                     </div>
                   </div>
@@ -368,9 +406,7 @@ const StudentDashboard: React.FC = () => {
                   <PieChart className="h-5 w-5" />
                   Role Distribution
                 </CardTitle>
-                <CardDescription>
-                  Your roles across eschools
-                </CardDescription>
+                <CardDescription>Your roles across eschools</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -385,13 +421,18 @@ const StudentDashboard: React.FC = () => {
                           outerRadius={80}
                           fill="#8884d8"
                           dataKey="value"
-                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          label={({ name, percent }) =>
+                            `${name}: ${(percent * 100).toFixed(0)}%`
+                          }
                         >
                           {roleDistributionData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={COLORS[index % COLORS.length]}
+                            />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value) => [value, 'Count']} />
+                        <Tooltip formatter={(value) => [value, "Count"]} />
                         <Legend />
                       </RechartsPieChart>
                     </ResponsiveContainer>
@@ -400,8 +441,8 @@ const StudentDashboard: React.FC = () => {
                     <h4 className="font-medium">Your Eschools</h4>
                     <div className="space-y-3">
                       {profileData.eschool_roles?.slice(0, 4).map((role) => (
-                        <div 
-                          key={role.eschool_id} 
+                        <div
+                          key={role.eschool_id}
                           className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
                           onClick={() => {
                             setSelectedEschoolId(role.eschool_id);
@@ -415,16 +456,24 @@ const StudentDashboard: React.FC = () => {
                             </Badge>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-medium">{role.attendance_summary.attendance_rate}%</p>
-                            <p className="text-xs text-muted-foreground">Attendance</p>
+                            <p className="text-sm font-medium">
+                              {role.attendance_summary.attendance_rate}%
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Attendance
+                            </p>
                           </div>
                         </div>
                       ))}
                       {profileData.eschool_roles?.length > 4 && (
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           className="w-full"
-                          onClick={() => setActiveTab(`eschool-${profileData.eschool_roles[4].eschool_id}`)}
+                          onClick={() =>
+                            setActiveTab(
+                              `eschool-${profileData.eschool_roles[4].eschool_id}`
+                            )
+                          }
                         >
                           View all eschools
                           <ChevronRight className="h-4 w-4 ml-2" />
@@ -457,19 +506,23 @@ const StudentDashboard: React.FC = () => {
                     margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="name" 
+                    <XAxis
+                      dataKey="name"
                       angle={-45}
                       textAnchor="end"
                       height={60}
                     />
                     <YAxis domain={[0, 100]} />
-                    <Tooltip 
-                      formatter={(value) => [`${value}%`, 'Attendance Rate']}
+                    <Tooltip
+                      formatter={(value) => [`${value}%`, "Attendance Rate"]}
                       labelFormatter={(value) => `Eschool: ${value}`}
                     />
                     <Legend />
-                    <Bar dataKey="attendance" name="Attendance Rate" fill="#3B82F6" />
+                    <Bar
+                      dataKey="attendance"
+                      name="Attendance Rate"
+                      fill="#3B82F6"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -493,24 +546,26 @@ const StudentDashboard: React.FC = () => {
                     margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="name" 
+                    <XAxis
+                      dataKey="name"
                       angle={-45}
                       textAnchor="end"
                       height={60}
                     />
-                    <YAxis 
-                      tickFormatter={(value) => `Rp ${(value / 1000).toFixed(0)}K`}
+                    <YAxis
+                      tickFormatter={(value) =>
+                        `Rp ${(value / 1000).toFixed(0)}K`
+                      }
                     />
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value, name) => {
-                        if (name === 'paid') {
-                          return [formatCurrency(value as number), 'Paid'];
+                        if (name === "paid") {
+                          return [formatCurrency(value as number), "Paid"];
                         }
-                        if (name === 'target') {
-                          return [formatCurrency(value as number), 'Target'];
+                        if (name === "target") {
+                          return [formatCurrency(value as number), "Target"];
                         }
-                        return [`${value}%`, 'Collection Rate'];
+                        return [`${value}%`, "Collection Rate"];
                       }}
                       labelFormatter={(value) => `Eschool: ${value}`}
                     />
@@ -537,37 +592,49 @@ const StudentDashboard: React.FC = () => {
             <CardContent>
               {profileData.recent_activities?.length > 0 ? (
                 <div className="space-y-4">
-                  {profileData.recent_activities.slice(0, 5).map((activity, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h4 className="font-medium">{activity.eschool_name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {activity.description}
-                          </p>
-                        </div>
-                        <Badge variant="outline">{activity.role_context}</Badge>
-                      </div>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <p className="text-muted-foreground">Type</p>
-                          <p className="font-medium capitalize">{activity.type.replace('_', ' ')}</p>
-                        </div>
-                        {activity.amount && (
+                  {profileData.recent_activities
+                    .slice(0, 5)
+                    .map((activity, index) => (
+                      <div key={index} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
                           <div>
-                            <p className="text-muted-foreground">Amount</p>
-                            <p className="font-medium">{formatCurrency(activity.amount)}</p>
+                            <h4 className="font-medium">
+                              {activity.eschool_name}
+                            </h4>
+                            <p className="text-sm text-muted-foreground">
+                              {activity.description}
+                            </p>
                           </div>
-                        )}
-                        <div>
-                          <p className="text-muted-foreground">Date</p>
-                          <p className="font-medium">
-                            {new Date(activity.date).toLocaleDateString('id-ID')}
-                          </p>
+                          <Badge variant="outline">
+                            {activity.role_context}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Type</p>
+                            <p className="font-medium capitalize">
+                              {activity.type.replace("_", " ")}
+                            </p>
+                          </div>
+                          {activity.amount && (
+                            <div>
+                              <p className="text-muted-foreground">Amount</p>
+                              <p className="font-medium">
+                                {formatCurrency(activity.amount)}
+                              </p>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-muted-foreground">Date</p>
+                            <p className="font-medium">
+                              {new Date(activity.date).toLocaleDateString(
+                                "id-ID"
+                              )}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               ) : (
                 <p className="text-muted-foreground">
@@ -580,7 +647,10 @@ const StudentDashboard: React.FC = () => {
 
         {/* Individual Eschool Tabs */}
         {profileData.eschool_roles?.map((role) => (
-          <TabsContent key={role.eschool_id} value={`eschool-${role.eschool_id}`}>
+          <TabsContent
+            key={role.eschool_id}
+            value={`eschool-${role.eschool_id}`}
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
               {/* Eschool Information */}
               <Card>
@@ -590,37 +660,50 @@ const StudentDashboard: React.FC = () => {
                     {role.eschool_name}
                   </CardTitle>
                   <CardDescription>
-                    Your role: <span className="font-medium">{role.role_in_eschool}</span>
+                    Your role:{" "}
+                    <span className="font-medium">{role.role_in_eschool}</span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Status</span>
-                    <Badge 
-                      variant={role.status === 'active' ? 'default' : 'destructive'}
+                    <Badge
+                      variant={
+                        role.status === "active" ? "default" : "destructive"
+                      }
                     >
                       {role.status}
                     </Badge>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="text-muted-foreground text-sm">Assigned Date</p>
+                      <p className="text-muted-foreground text-sm">
+                        Assigned Date
+                      </p>
                       <p className="font-medium">
-                        {new Date(role.assigned_at).toLocaleDateString('id-ID')}
+                        {new Date(role.assigned_at).toLocaleDateString("id-ID")}
                       </p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground text-sm">Permissions</p>
+                      <p className="text-muted-foreground text-sm">
+                        Permissions
+                      </p>
                       <p className="font-medium">{role.permissions.length}</p>
                     </div>
                   </div>
-                  
+
                   <div>
-                    <p className="text-muted-foreground text-sm mb-2">Permissions</p>
+                    <p className="text-muted-foreground text-sm mb-2">
+                      Permissions
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {role.permissions.slice(0, 5).map((permission, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
+                        <Badge
+                          key={idx}
+                          variant="secondary"
+                          className="text-xs"
+                        >
                           {permission}
                         </Badge>
                       ))}
@@ -667,7 +750,8 @@ const StudentDashboard: React.FC = () => {
                   <div className="bg-orange-50 p-3 rounded-lg">
                     <p className="text-sm text-orange-700">Absent</p>
                     <p className="text-2xl font-bold text-orange-900">
-                      {role.attendance_summary.total_meetings - role.attendance_summary.attended}
+                      {role.attendance_summary.total_meetings -
+                        role.attendance_summary.attended}
                     </p>
                   </div>
                 </CardContent>
@@ -707,7 +791,7 @@ const StudentDashboard: React.FC = () => {
                 <div className="bg-orange-50 p-3 rounded-lg">
                   <p className="text-sm text-orange-700">Payment Status</p>
                   <p className="text-2xl font-bold text-orange-900 capitalize">
-                    {role.kas_summary.payment_status || 'N/A'}
+                    {role.kas_summary.payment_status || "N/A"}
                   </p>
                 </div>
               </CardContent>
@@ -732,21 +816,19 @@ const StudentDashboard: React.FC = () => {
                       data={[
                         {
                           name: "Attendance",
-                          value: role.attendance_summary.attendance_rate
+                          value: role.attendance_summary.attendance_rate,
                         },
                         {
                           name: "Absent",
-                          value: 100 - role.attendance_summary.attendance_rate
-                        }
+                          value: 100 - role.attendance_summary.attendance_rate,
+                        },
                       ]}
                       margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis domain={[0, 100]} />
-                      <Tooltip 
-                        formatter={(value) => [`${value}%`, 'Rate']}
-                      />
+                      <Tooltip formatter={(value) => [`${value}%`, "Rate"]} />
                       <Bar dataKey="value" name="Percentage" fill="#3B82F6">
                         <Cell fill="#10B981" />
                         <Cell fill="#EF4444" />
@@ -774,12 +856,14 @@ const StudentDashboard: React.FC = () => {
                         data={[
                           {
                             name: "Paid",
-                            value: role.kas_summary.personal_balance || 0
+                            value: role.kas_summary.personal_balance || 0,
                           },
                           {
                             name: "Pending",
-                            value: (role.kas_summary.monthly_target || 0) - (role.kas_summary.personal_balance || 0)
-                          }
+                            value:
+                              (role.kas_summary.monthly_target || 0) -
+                              (role.kas_summary.personal_balance || 0),
+                          },
                         ]}
                         cx="50%"
                         cy="50%"
@@ -787,13 +871,18 @@ const StudentDashboard: React.FC = () => {
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="value"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) =>
+                          `${name}: ${(percent * 100).toFixed(0)}%`
+                        }
                       >
                         <Cell fill="#10B981" />
                         <Cell fill="#F59E0B" />
                       </Pie>
-                      <Tooltip 
-                        formatter={(value) => [formatCurrency(value as number), 'Amount']}
+                      <Tooltip
+                        formatter={(value) => [
+                          formatCurrency(value as number),
+                          "Amount",
+                        ]}
                       />
                       <Legend />
                     </RechartsPieChart>
