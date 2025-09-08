@@ -10,18 +10,24 @@ import {
 } from "@/components/ui/card";
 import { useStaffDashboard } from "@/hooks/use-dashboard";
 import { useMemberProfileData } from "../../../hooks/use-member-profile";
-import { useRole } from "@/contexts/RoleContext";
+import { useAuth } from "@/hooks/use-auth";
+import { useMultiRoleProfile } from "@/hooks/use-multi-role-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Users, School, TrendingUp, CreditCard } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const StaffDashboard: React.FC = () => {
-  const { selectedRole, selectedEschoolId } = useRole();
+  const { user } = useAuth();
+  const { data: profileData } = useMultiRoleProfile();
+
+  // Get staff role and eschool_id
+  const staffRole = user?.roles?.find((role) => role.role === "staff");
+  const selectedEschoolId = staffRole?.eschool_id;
 
   const { overview, isLoadingOverview, overviewError } = useStaffDashboard();
 
-  const { profileData, isLoadingProfile, profileError } =
-    useMemberProfileData();
+  // const { profileData, isLoadingProfile, profileError } =
+  //   useMemberProfileData();
 
   // Use dashboard data if available, fallback to profile data
   const finalData = overview || profileData;

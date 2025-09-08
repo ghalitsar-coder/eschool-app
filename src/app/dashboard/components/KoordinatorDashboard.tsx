@@ -9,14 +9,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useCoordinatorDashboard } from "@/hooks/use-dashboard";
-import { useAttendanceManagement } from "@/hooks/use-attendance";
-import { useRole } from "@/contexts/RoleContext";
+
+import { useAuth } from "@/hooks/use-auth";
+import { useMultiRoleProfile } from "@/hooks/use-multi-role-profile";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart,
   Bar,
-  PieChart,
-  Pie,
   Cell,
   XAxis,
   YAxis,
@@ -27,12 +26,17 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+
 import { CheckCircle2, CalendarIcon, Users, TrendingUp } from "lucide-react";
 
 const KoordinatorDashboard: React.FC = () => {
-  const { selectedRole, selectedEschoolId } = useRole();
+  const { user } = useAuth();
+
+  // Get coordinator role and eschool_id
+  const coordinatorRole = user?.roles?.find(
+    (role) => role.role === "coordinator"
+  );
+  const selectedEschoolId = coordinatorRole?.eschool_id;
 
   const {
     statistics,
@@ -44,7 +48,7 @@ const KoordinatorDashboard: React.FC = () => {
   } = useCoordinatorDashboard();
 
   // Show message if user is not a coordinator
-  if (selectedRole !== "coordinator") {
+  if (!coordinatorRole) {
     return (
       <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
         <div className="px-4 lg:px-6">
@@ -149,7 +153,7 @@ const KoordinatorDashboard: React.FC = () => {
       return (
         <div className="bg-white p-4 border border-gray-200 rounded shadow">
           <p className="font-bold">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry: unknown, index: number) => (
             <p key={index} style={{ color: entry.color }}>
               {entry.name}: {entry.value}
             </p>
