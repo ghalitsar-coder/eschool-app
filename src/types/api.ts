@@ -147,10 +147,23 @@ export interface Eschool {
 
 // Attendance interfaces
 export interface AttendanceStats {
-  today: { present: number; total: number; percentage: number };
-  week: { present: number; total: number; percentage: number };
-  month: { present: number; total: number; percentage: number };
-  total_members: number;
+  total_records: number;
+  total_present: number;
+  total_absent: number;
+  total_late: number;
+  attendance_rate: number;
+  this_week: {
+    total: number;
+    present: number;
+    absent: number;
+    rate: number;
+  };
+  this_month: {
+    total: number;
+    present: number;
+    absent: number;
+    rate: number;
+  };
 }
 
 export interface AttendanceAnalytics {

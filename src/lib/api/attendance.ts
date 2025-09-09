@@ -98,6 +98,9 @@ export const attendanceApi = {
       has_prev_page: boolean;
     };
   }> => {
+  console.log(`THIS IS  ~ params:`, params)
+
+    
     try {
       if (!params?.eschoolId) {
         throw new Error("Eschool ID is required");

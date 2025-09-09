@@ -4,7 +4,6 @@ import {
   AttendanceRecord,
   AttendanceStats,
   AttendanceFormData,
-  UpdateAttendanceParams,
   AttendanceAnalytics,
   AttendanceMember,
 } from "@/types/api";
@@ -90,18 +89,13 @@ interface UseDeleteAttendanceReturn {
 export const useAttendance = (
   params?: UseAttendanceParams
 ): UseAttendanceReturn => {
-  const { user, getEschoolIdForRole } = useAuth();
+  console.log(`THIS IS  ~ params:`, params);
+  const { getEschoolIdForRole } = useAuth();
 
   // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
-  const getEschoolId = () => {
-    if (!user?.roles) return null;
-    const primaryRole = user.roles.find((role) =>
-      ["coordinator", "staff", "supervisor"].includes(role.role)
-    );
-    return primaryRole?.eschool_id || null;
-  };
 
-  const eschoolId = getEschoolId();
+  const eschoolId = getEschoolIdForRole("coordinator");
+  console.log(`THIS IS  ~ eschoolId:`, eschoolId);
 
   const { data, isLoading, error, refetch } = useQuery<
     { data: AttendanceRecord[]; meta: AttendanceMeta },
@@ -112,9 +106,10 @@ export const useAttendance = (
       if (!eschoolId) {
         throw new Error("No eschool ID found");
       }
+      console.log(`THIS IS  ~ eschoolId: 2 222`, eschoolId);
       const response = await attendanceApi.getAttendanceRecords({
-        eschoolId: eschoolId,
         ...params,
+        eschoolId,
       });
       return response;
     },
@@ -132,18 +127,10 @@ export const useAttendance = (
 
 // Hook to fetch attendance statistics
 export const useAttendanceStatistics = (): UseStatisticsReturn => {
-  const { user } = useAuth();
+  const { getEschoolIdForRole } = useAuth();
 
-  // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
-  const getEschoolId = () => {
-    if (!user?.roles) return null;
-    const primaryRole = user.roles.find((role) =>
-      ["coordinator", "staff", "supervisor"].includes(role.role)
-    );
-    return primaryRole?.eschool_id || null;
-  };
-
-  const eschoolId = getEschoolId();
+  const eschoolId = getEschoolIdForRole("coordinator");
+  console.log(`THIS IS  ~ eschoolId:555`, eschoolId);
 
   const { data, isLoading, error, refetch } = useQuery<AttendanceStats, Error>({
     queryKey: ["attendance-statistics", eschoolId],
@@ -169,18 +156,11 @@ export const useAttendanceStatistics = (): UseStatisticsReturn => {
 export const useAttendanceAnalytics = (
   params?: UseAnalyticsParams
 ): UseAnalyticsReturn => {
-  const { user } = useAuth();
+  const { getEschoolIdForRole } = useAuth();
 
   // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
-  const getEschoolId = () => {
-    if (!user?.roles) return null;
-    const primaryRole = user.roles.find((role) =>
-      ["coordinator", "staff", "supervisor"].includes(role.role)
-    );
-    return primaryRole?.eschool_id || null;
-  };
 
-  const eschoolId = getEschoolId();
+  const eschoolId = getEschoolIdForRole("coordinator");
 
   const { data, isLoading, error, refetch } = useQuery<
     AttendanceAnalytics,
@@ -211,18 +191,9 @@ export const useAttendanceAnalytics = (
 
 // Hook to fetch members for attendance using new multi-role API
 export const useAttendanceMembers = (): UseMembersReturn => {
-  const { user } = useAuth();
+  const { getEschoolIdForRole } = useAuth();
 
-  // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
-  const getEschoolId = () => {
-    if (!user?.roles) return null;
-    const primaryRole = user.roles.find((role) =>
-      ["coordinator", "staff", "supervisor"].includes(role.role)
-    );
-    return primaryRole?.eschool_id || null;
-  };
-
-  const eschoolId = getEschoolId();
+  const eschoolId = getEschoolIdForRole("coordinator");
 
   const { data, isLoading, error } = useQuery<AttendanceMember[], Error>({
     queryKey: ["attendance-members", eschoolId],
@@ -247,28 +218,15 @@ export const useAttendanceMembers = (): UseMembersReturn => {
 
 // Hook to create attendance records
 export const useCreateAttendance = (): UseCreateAttendanceReturn => {
-  const { user } = useAuth();
+  const { getEschoolIdForRole } = useAuth();
   const queryClient = useQueryClient();
-
+  const eschoolId = getEschoolIdForRole("coordinator");
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: async (data: FormData | AttendanceFormData) => {
-      if (!user?.roles) {
-        throw new Error("No user roles found");
+      if (!eschoolId) {
+        throw new Error("No eschool ID found");
       }
-
-      // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
-      const primaryRole = user.roles.find((role) =>
-        ["coordinator", "staff", "supervisor"].includes(role.role)
-      );
-
-      if (!primaryRole) {
-        throw new Error("No valid role found for attendance management");
-      }
-
-      const response = await attendanceApi.recordAttendance(
-        primaryRole.eschool_id,
-        data
-      );
+      const response = await attendanceApi.recordAttendance(eschoolId, data);
       return response.data;
     },
     onSuccess: () => {
@@ -406,43 +364,25 @@ export const useAttendanceManagement = (
   analyticsParams?: UseAnalyticsParams,
   filterParams?: UseAttendanceParams
 ) => {
-  const { user, getEschoolIdForRole, getPrimaryRole } = useAuth();
+  const { user } = useAuth();
 
   // Use all the individual hooks with filter params
   const { records, meta, isLoadingRecords, recordsError, refetchRecords } =
     useAttendance(filterParams);
 
-  // Import dashboard hooks for better performance
-  const {
-    statistics,
-    analytics,
-    isLoadingStatistics,
-    isLoadingAnalytics,
-    statisticsError,
-    analyticsError,
-    refetchStatistics,
-    refetchAnalytics,
-  } = (() => {
-    try {
-      // Try to use dashboard hooks if available
-      const { useCoordinatorDashboard } = require("@/hooks/use-dashboard");
-      return useCoordinatorDashboard(analyticsParams);
-    } catch {
-      // Fallback to original hooks
-      const statisticsQuery = useAttendanceStatistics();
-      const analyticsQuery = useAttendanceAnalytics(analyticsParams);
-      return {
-        statistics: statisticsQuery.statistics,
-        analytics: analyticsQuery.analytics,
-        isLoadingStatistics: statisticsQuery.isLoadingStatistics,
-        isLoadingAnalytics: analyticsQuery.isLoadingAnalytics,
-        statisticsError: statisticsQuery.statisticsError,
-        analyticsError: analyticsQuery.analyticsError,
-        refetchStatistics: statisticsQuery.refetchStatistics,
-        refetchAnalytics: analyticsQuery.refetchAnalytics,
-      };
-    }
-  })();
+  // Use individual hooks directly (hooks must be called at the top level)
+  const statisticsQuery = useAttendanceStatistics();
+  const analyticsQuery = useAttendanceAnalytics(analyticsParams);
+
+  const statistics = statisticsQuery.statistics;
+  console.log(`THIS IS  ~ statistics:`, statistics);
+  const analytics = analyticsQuery.analytics;
+  const isLoadingStatistics = statisticsQuery.isLoadingStatistics;
+  const isLoadingAnalytics = analyticsQuery.isLoadingAnalytics;
+  const statisticsError = statisticsQuery.statisticsError;
+  const analyticsError = analyticsQuery.analyticsError;
+  const refetchStatistics = statisticsQuery.refetchStatistics;
+  const refetchAnalytics = analyticsQuery.refetchAnalytics;
 
   const { members, isLoadingMembers, membersError } = useAttendanceMembers();
   const { createAttendance, isCreating, createError } = useCreateAttendance();
@@ -504,6 +444,20 @@ export const useAttendanceManagement = (
     analytics,
     members,
 
+    // Pagination (alias for meta for backward compatibility)
+    pagination: meta
+      ? {
+          currentPage: meta.current_page,
+          totalPages: meta.last_page,
+          total: meta.total,
+          perPage: meta.per_page,
+          from: meta.from,
+          to: meta.to,
+          hasNextPage: meta.has_next_page,
+          hasPrevPage: meta.has_prev_page,
+        }
+      : undefined,
+
     // Loading states
     isLoadingRecords,
     isLoadingStatistics,
@@ -512,6 +466,7 @@ export const useAttendanceManagement = (
     isCreating,
     isUpdating,
     isDeleting,
+    isExporting: false, // Add this for export functionality
 
     // Errors
     recordsError,
@@ -526,6 +481,7 @@ export const useAttendanceManagement = (
     createAttendance,
     updateAttendance,
     deleteAttendance,
+    exportAttendance: exportRecords, // Alias for backward compatibility
     exportRecords,
     refetchRecords,
     refetchStatistics,
