@@ -7,7 +7,6 @@ import { Plus, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -194,10 +193,24 @@ const DialogCreateAttendance: React.FC<DialogCreateAttendanceProps> = ({
                             render={({ field }) => (
                               <FormItem>
                                 <FormControl>
-                                  <Checkbox
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                  />
+                                  <Select
+                                    onValueChange={(value) =>
+                                      field.onChange(value === "true")
+                                    }
+                                    value={field.value ? "true" : "false"}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="true">
+                                        Hadir
+                                      </SelectItem>
+                                      <SelectItem value="false">
+                                        Tidak Hadir
+                                      </SelectItem>
+                                    </SelectContent>
+                                  </Select>
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>

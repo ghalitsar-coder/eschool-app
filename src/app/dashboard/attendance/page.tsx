@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { toast } from "sonner";
 
 import { useAttendanceManagement } from "@/hooks/use-attendance";
@@ -64,20 +63,11 @@ export default function AttendancePage() {
     isUpdating,
     isDeleting,
     isExporting,
-    // Errors
-    recordsError,
-    membersError,
-    statisticsError,
-    createError,
-    updateError,
-    deleteError,
     // Actions
     createAttendance,
     updateAttendance,
     deleteAttendance,
     exportAttendance,
-    refetchRecords,
-    refetchStatistics,
   } = useAttendanceManagement(
     { period: "week" }, // analyticsParams
     {
@@ -124,8 +114,6 @@ export default function AttendancePage() {
       setIsCreateDialogOpen(false);
       toast.success("Attendance recorded successfully!");
     } catch (error: any) {
-      console.error("Error creating attendance:", error);
-
       // Handle backend validation errors
       if (error?.response?.data?.errors) {
         const backendErrors = error.response.data.errors;
@@ -182,6 +170,9 @@ export default function AttendancePage() {
   const handleUpdateAttendance = async (data: UpdateAttendanceFormData) => {
     if (!selectedRecord) return;
 
+    console.log("Selected record:", selectedRecord);
+    console.log("Selected record ID:", selectedRecord.id);
+
     try {
       const formData = new FormData();
       formData.append("is_present", data.is_present ? "1" : "0");
@@ -192,7 +183,10 @@ export default function AttendancePage() {
         formData.append("proof_document", data.proof_document);
       }
 
-      await updateAttendance(selectedRecord.id, formData as any);
+      await updateAttendance({
+        id: selectedRecord.id,
+        data: formData as any,
+      });
       setIsUpdateDialogOpen(false);
       setSelectedRecord(null);
       toast.success("Attendance record updated successfully!");
@@ -204,7 +198,7 @@ export default function AttendancePage() {
     }
   };
 
-  const handleExportAttendance = async (data: any) => {
+  const handleExportAttendance = async (data: unknown) => {
     try {
       await exportAttendance({
         start_date: data.start_date,

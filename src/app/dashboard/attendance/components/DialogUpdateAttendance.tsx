@@ -8,7 +8,13 @@ import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -109,19 +115,25 @@ const DialogUpdateAttendance: React.FC<DialogUpdateAttendanceProps> = ({
               control={form.control}
               name="is_present"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                <FormItem>
+                  <FormLabel>Attendance Status</FormLabel>
                   <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
+                    <Select
+                      onValueChange={(value) =>
+                        field.onChange(value === "true")
+                      }
+                      value={field.value ? "true" : "false"}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select attendance status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Hadir</SelectItem>
+                        <SelectItem value="false">Tidak Hadir</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Present</FormLabel>
-                    <p className="text-sm text-muted-foreground">
-                      Check if the member was present
-                    </p>
-                  </div>
+                  <FormMessage />
                 </FormItem>
               )}
             />

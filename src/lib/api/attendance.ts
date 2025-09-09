@@ -1,11 +1,11 @@
 // attendanceApi.ts - Enhanced Attendance Management API with Multi-Role Support
-import { 
-  ApiResponse, 
-  AttendanceFormData, 
-  AttendanceRecord, 
+import {
+  ApiResponse,
+  AttendanceFormData,
+  AttendanceRecord,
   AttendanceStats,
   AttendanceAnalytics,
-  AttendanceMember
+  AttendanceMember,
 } from "@/types/api";
 import apiClient from "./client";
 
@@ -17,59 +17,60 @@ export const attendanceApi = {
   ): Promise<ApiResponse<AttendanceRecord>> => {
     try {
       // Log the data being sent for debugging
-      
-      
+
       let requestData = data;
       let headers = {};
-      
+
       // If it's FormData, we need to handle boolean conversion on server side
       if (data instanceof FormData) {
         requestData = data;
         headers = {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         };
-        
       } else {
         const formattedData: AttendanceFormData = {
           ...data,
-          members: data.members.map(member => ({
+          members: data.members.map((member) => ({
             ...member,
             is_present: Boolean(member.is_present), // Ensure boolean type
-            member_id: String(member.member_id) // Ensure string type for consistency
-          }))
+            member_id: String(member.member_id), // Ensure string type for consistency
+          })),
         };
-        
+
         requestData = formattedData;
         headers = {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         };
-        
       }
-      
+
       const response = await apiClient.post<ApiResponse<AttendanceRecord>>(
         `/eschool/${eschoolId}/attendance/record`,
         requestData,
         { headers }
       );
-      
+
       return response.data;
     } catch (error: unknown) {
       console.error("Error recording attendance:", error);
-      
+
       // Log more detailed error information
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data: unknown; status: number; headers: unknown }; request?: unknown; message?: string };
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as {
+          response?: { data: unknown; status: number; headers: unknown };
+          request?: unknown;
+          message?: string;
+        };
         if (axiosError.response) {
-          console.error("Response data:", axiosError.response.data);
-          console.error("Response status:", axiosError.response.status);
-          console.error("Response headers:", axiosError.response.headers);
+          // console.error("Response data:", axiosError.response.data);
+          // console.error("Response status:", axiosError.response.status);
+          // console.error("Response headers:", axiosError.response.headers);
         } else if (axiosError.request) {
           console.error("Request data:", axiosError.request);
         } else {
           console.error("Error message:", axiosError.message);
         }
       }
-      
+
       throw error;
     }
   },
@@ -98,9 +99,8 @@ export const attendanceApi = {
       has_prev_page: boolean;
     };
   }> => {
-  console.log(`THIS IS  ~ params:`, params)
+    console.log(`THIS IS  ~ params:`, params);
 
-    
     try {
       if (!params?.eschoolId) {
         throw new Error("Eschool ID is required");
@@ -117,16 +117,19 @@ export const attendanceApi = {
         page: params.page,
         per_page: params.per_page || 10, // Default 10 per page
       };
-      
+
       // Remove undefined values to avoid sending empty parameters
       const filteredParams = Object.fromEntries(
         Object.entries(cleanParams).filter(([, value]) => value !== undefined)
       );
-      
-      const response = await apiClient.get(`/eschool/${params.eschoolId}/attendance/records`, { 
-        params: filteredParams 
-      });
-      
+
+      const response = await apiClient.get(
+        `/eschool/${params.eschoolId}/attendance/records`,
+        {
+          params: filteredParams,
+        }
+      );
+
       return {
         data: Array.isArray(response.data.data) ? response.data.data : [],
         meta: response.data.meta || {
@@ -137,8 +140,8 @@ export const attendanceApi = {
           from: 0,
           to: 0,
           has_next_page: false,
-          has_prev_page: false
-        }
+          has_prev_page: false,
+        },
       };
     } catch (error) {
       console.error("Error fetching attendance records:", error);
@@ -147,9 +150,13 @@ export const attendanceApi = {
   },
 
   // Get attendance statistics using new multi-role endpoint
-  getAttendanceStatistics: async (eschoolId: number): Promise<AttendanceStats> => {
+  getAttendanceStatistics: async (
+    eschoolId: number
+  ): Promise<AttendanceStats> => {
     try {
-      const response = await apiClient.get(`/eschool/${eschoolId}/attendance/statistics`);
+      const response = await apiClient.get(
+        `/eschool/${eschoolId}/attendance/statistics`
+      );
       return response.data.data;
     } catch (error) {
       console.error("Error fetching attendance statistics:", error);
@@ -163,11 +170,14 @@ export const attendanceApi = {
     period?: string;
   }): Promise<AttendanceAnalytics> => {
     try {
-      const response = await apiClient.get(`/eschool/${params.eschoolId}/attendance/analytics`, {
-        params: { 
-          period: params.period || 'week'
+      const response = await apiClient.get(
+        `/eschool/${params.eschoolId}/attendance/analytics`,
+        {
+          params: {
+            period: params.period || "week",
+          },
         }
-      });
+      );
       return response.data.data;
     } catch (error) {
       console.error("Error fetching attendance analytics:", error);
@@ -176,17 +186,24 @@ export const attendanceApi = {
   },
 
   // Get members for attendance using new multi-role endpoint
-  getAttendanceMembers: async (eschoolId: number): Promise<AttendanceMember[]> => {
+  getAttendanceMembers: async (
+    eschoolId: number
+  ): Promise<AttendanceMember[]> => {
     try {
       // Use the new multi-role members list endpoint
-      const response = await apiClient.get(`/eschool/${eschoolId}/members/list`);
-      
+      const response = await apiClient.get(
+        `/eschool/${eschoolId}/members/list`
+      );
 
       // Return the data array from the response
-      if (response.data && response.data.success && Array.isArray(response.data.data)) {
+      if (
+        response.data &&
+        response.data.success &&
+        Array.isArray(response.data.data)
+      ) {
         return response.data.data;
       }
-      
+
       return [];
     } catch (error) {
       console.error("Error fetching attendance members:", error);
@@ -201,7 +218,12 @@ export const attendanceApi = {
     data: Partial<AttendanceFormData>
   ): Promise<ApiResponse<AttendanceRecord>> => {
     try {
-      const response = await apiClient.put(`/eschool/${eschoolId}/attendance/records/${id}`, data);
+     
+
+      const response = await apiClient.put(
+        `/eschool/${eschoolId}/attendance/records/${id}`,
+        data
+      );
       return response.data;
     } catch (error) {
       console.error("Error updating attendance:", error);
@@ -210,9 +232,14 @@ export const attendanceApi = {
   },
 
   // Delete attendance record using new multi-role endpoint
-  deleteAttendance: async (eschoolId: number, id: number): Promise<ApiResponse<void>> => {
+  deleteAttendance: async (
+    eschoolId: number,
+    id: number
+  ): Promise<ApiResponse<void>> => {
     try {
-      const response = await apiClient.delete(`/eschool/${eschoolId}/attendance/records/${id}`);
+      const response = await apiClient.delete(
+        `/eschool/${eschoolId}/attendance/records/${id}`
+      );
       return response.data;
     } catch (error) {
       console.error("Error deleting attendance:", error);
@@ -229,10 +256,11 @@ export const attendanceApi = {
   }): Promise<Blob> => {
     try {
       // Use the new multi-role export endpoint
-      const endpoint = params.format === "pdf" 
-        ? `/eschool/${params.eschool_id}/attendance/export/pdf`
-        : `/eschool/${params.eschool_id}/attendance/export/csv`;
-      
+      const endpoint =
+        params.format === "pdf"
+          ? `/eschool/${params.eschool_id}/attendance/export/pdf`
+          : `/eschool/${params.eschool_id}/attendance/export/csv`;
+
       const response = await apiClient.get(endpoint, {
         params: {
           start_date: params.start_date,

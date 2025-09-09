@@ -234,6 +234,13 @@ export const useCreateAttendance = (): UseCreateAttendanceReturn => {
       queryClient.invalidateQueries({ queryKey: ["attendance-stats"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-analytics"] });
     },
+    onError: (error: unknown) => {
+      // Only log non-validation errors to avoid console spam
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError?.response?.status !== 422) {
+        console.error("Attendance creation error:", error);
+      }
+    },
   });
 
   const createAttendance = async (data: AttendanceFormData): Promise<void> => {
@@ -260,6 +267,9 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
       id: number;
       data: Partial<AttendanceFormData>;
     }) => {
+      console.log("Update attendance - ID:", id);
+      console.log("Update attendance - Data:", data);
+
       if (!user?.roles) {
         throw new Error("No user roles found");
       }
@@ -291,6 +301,13 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
       queryClient.invalidateQueries({
         queryKey: ["attendance-analytics"],
       });
+    },
+    onError: (error: unknown) => {
+      // Only log non-validation errors to avoid console spam
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError?.response?.status !== 422) {
+        console.error("Attendance update error:", error);
+      }
     },
   });
 
@@ -345,6 +362,13 @@ export const useDeleteAttendance = (): UseDeleteAttendanceReturn => {
       queryClient.invalidateQueries({
         queryKey: ["attendance-analytics"],
       });
+    },
+    onError: (error: unknown) => {
+      // Only log non-validation errors to avoid console spam
+      const axiosError = error as { response?: { status?: number } };
+      if (axiosError?.response?.status !== 422) {
+        console.error("Attendance delete error:", error);
+      }
     },
   });
 
