@@ -194,12 +194,13 @@ export interface AttendanceAnalytics {
 }
 
 export interface AttendanceFormData {
-  eschool_id: number;
+  eschool_id?: number;
   date: string;
   members: {
     member_id: string;
     is_present: boolean;
     notes: string | null;
+    proof_document?: File | null;
   }[];
 }
 
@@ -210,16 +211,29 @@ export interface CreateAttendanceParams {
 
 export interface UpdateAttendanceParams {
   id: number;
-  data: any;
+  data: unknown;
+}
+
+export interface AttendanceMember {
+  user_id: number;
+  name: string;
+  student_id: string;
 }
 
 export interface AttendanceRecord {
   id: number;
   date: string;
   is_present: boolean;
+  status: string;
   notes?: string | null;
+  proof_document?: string | null;
   member: Member;
-  recorder: User;
+  recorder?: {
+    user_id: number | null;
+    name: string;
+  };
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PaginationLinks {
@@ -246,5 +260,3 @@ export interface AttendanceResponse {
   success: boolean;
   message: string;
 }
-
-

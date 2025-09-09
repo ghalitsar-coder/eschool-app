@@ -90,24 +90,35 @@ interface UseDeleteAttendanceReturn {
 export const useAttendance = (
   params?: UseAttendanceParams
 ): UseAttendanceReturn => {
-  const { user } = useAuth();
+  const { user, getEschoolIdForRole } = useAuth();
+
+  // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
+  const getEschoolId = () => {
+    if (!user?.roles) return null;
+    const primaryRole = user.roles.find((role) =>
+      ["coordinator", "staff", "supervisor"].includes(role.role)
+    );
+    return primaryRole?.eschool_id || null;
+  };
+
+  const eschoolId = getEschoolId();
 
   const { data, isLoading, error, refetch } = useQuery<
     { data: AttendanceRecord[]; meta: AttendanceMeta },
     Error
   >({
-    queryKey: ["attendance", user?.eschool_id, params],
+    queryKey: ["attendance", eschoolId, params],
     queryFn: async () => {
-      if (!user?.eschool_id) {
+      if (!eschoolId) {
         throw new Error("No eschool ID found");
       }
       const response = await attendanceApi.getAttendanceRecords({
-        eschoolId: user.eschool_id,
+        eschoolId: eschoolId,
         ...params,
       });
       return response;
     },
-    enabled: !!user?.eschool_id,
+    enabled: !!eschoolId,
   });
 
   return {
@@ -123,18 +134,27 @@ export const useAttendance = (
 export const useAttendanceStatistics = (): UseStatisticsReturn => {
   const { user } = useAuth();
 
+  // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
+  const getEschoolId = () => {
+    if (!user?.roles) return null;
+    const primaryRole = user.roles.find((role) =>
+      ["coordinator", "staff", "supervisor"].includes(role.role)
+    );
+    return primaryRole?.eschool_id || null;
+  };
+
+  const eschoolId = getEschoolId();
+
   const { data, isLoading, error, refetch } = useQuery<AttendanceStats, Error>({
-    queryKey: ["attendance-statistics", user?.eschool_id],
+    queryKey: ["attendance-statistics", eschoolId],
     queryFn: async () => {
-      if (!user?.eschool_id) {
+      if (!eschoolId) {
         throw new Error("No eschool ID found");
       }
-      const response = await attendanceApi.getAttendanceStatistics(
-        user.eschool_id
-      );
+      const response = await attendanceApi.getAttendanceStatistics(eschoolId);
       return response;
     },
-    enabled: !!user?.eschool_id,
+    enabled: !!eschoolId,
   });
 
   return {
@@ -151,27 +171,34 @@ export const useAttendanceAnalytics = (
 ): UseAnalyticsReturn => {
   const { user } = useAuth();
 
+  // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
+  const getEschoolId = () => {
+    if (!user?.roles) return null;
+    const primaryRole = user.roles.find((role) =>
+      ["coordinator", "staff", "supervisor"].includes(role.role)
+    );
+    return primaryRole?.eschool_id || null;
+  };
+
+  const eschoolId = getEschoolId();
+
   const { data, isLoading, error, refetch } = useQuery<
     AttendanceAnalytics,
     Error
   >({
-    queryKey: [
-      "attendance-analytics",
-      user?.eschool_id,
-      params?.period || "week",
-    ],
+    queryKey: ["attendance-analytics", eschoolId, params?.period || "week"],
     queryFn: async () => {
-      if (!user?.eschool_id) {
+      if (!eschoolId) {
         throw new Error("No eschool ID found");
       }
       const response = await attendanceApi.getAttendanceAnalytics({
-        eschoolId: user.eschool_id,
+        eschoolId: eschoolId,
         period: params?.period || "week",
       });
       // Response already is AttendanceAnalytics, no need to extract data
       return response;
     },
-    enabled: !!user?.eschool_id,
+    enabled: !!eschoolId,
   });
 
   return {
@@ -186,20 +213,29 @@ export const useAttendanceAnalytics = (
 export const useAttendanceMembers = (): UseMembersReturn => {
   const { user } = useAuth();
 
+  // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
+  const getEschoolId = () => {
+    if (!user?.roles) return null;
+    const primaryRole = user.roles.find((role) =>
+      ["coordinator", "staff", "supervisor"].includes(role.role)
+    );
+    return primaryRole?.eschool_id || null;
+  };
+
+  const eschoolId = getEschoolId();
+
   const { data, isLoading, error } = useQuery<AttendanceMember[], Error>({
-    queryKey: ["attendance-members", user?.eschool_id],
+    queryKey: ["attendance-members", eschoolId],
     queryFn: async () => {
-      if (!user?.eschool_id) {
+      if (!eschoolId) {
         throw new Error("No eschool ID found");
       }
       // Use the new multi-role attendance members API
-      const response = await attendanceApi.getAttendanceMembers(
-        user.eschool_id
-      );
+      const response = await attendanceApi.getAttendanceMembers(eschoolId);
 
       return response || [];
     },
-    enabled: !!user?.eschool_id,
+    enabled: !!eschoolId,
   });
 
   return {
@@ -216,11 +252,21 @@ export const useCreateAttendance = (): UseCreateAttendanceReturn => {
 
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: async (data: FormData | AttendanceFormData) => {
-      if (!user?.eschool_id) {
-        throw new Error("No eschool ID found");
+      if (!user?.roles) {
+        throw new Error("No user roles found");
       }
+
+      // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
+      const primaryRole = user.roles.find((role) =>
+        ["coordinator", "staff", "supervisor"].includes(role.role)
+      );
+
+      if (!primaryRole) {
+        throw new Error("No valid role found for attendance management");
+      }
+
       const response = await attendanceApi.recordAttendance(
-        user.eschool_id,
+        primaryRole.eschool_id,
         data
       );
       return response.data;
@@ -256,11 +302,21 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
       id: number;
       data: Partial<AttendanceFormData>;
     }) => {
-      if (!user?.eschool_id) {
-        throw new Error("No eschool ID found");
+      if (!user?.roles) {
+        throw new Error("No user roles found");
       }
+
+      // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
+      const primaryRole = user.roles.find((role) =>
+        ["coordinator", "staff", "supervisor"].includes(role.role)
+      );
+
+      if (!primaryRole) {
+        throw new Error("No valid role found for attendance management");
+      }
+
       const response = await attendanceApi.updateAttendance(
-        user.eschool_id,
+        primaryRole.eschool_id,
         id,
         data
       );
@@ -269,13 +325,13 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
     onSuccess: () => {
       // Invalidate and refetch attendance queries
       queryClient.invalidateQueries({
-        queryKey: ["attendance", user?.eschool_id],
+        queryKey: ["attendance"],
       });
       queryClient.invalidateQueries({
-        queryKey: ["attendance-statistics", user?.eschool_id],
+        queryKey: ["attendance-statistics"],
       });
       queryClient.invalidateQueries({
-        queryKey: ["attendance-analytics", user?.eschool_id],
+        queryKey: ["attendance-analytics"],
       });
     },
   });
@@ -301,11 +357,21 @@ export const useDeleteAttendance = (): UseDeleteAttendanceReturn => {
 
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: async (id: number) => {
-      if (!user?.eschool_id) {
-        throw new Error("No eschool ID found");
+      if (!user?.roles) {
+        throw new Error("No user roles found");
       }
+
+      // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
+      const primaryRole = user.roles.find((role) =>
+        ["coordinator", "staff", "supervisor"].includes(role.role)
+      );
+
+      if (!primaryRole) {
+        throw new Error("No valid role found for attendance management");
+      }
+
       const response = await attendanceApi.deleteAttendance(
-        user.eschool_id,
+        primaryRole.eschool_id,
         id
       );
       return response;
@@ -313,13 +379,13 @@ export const useDeleteAttendance = (): UseDeleteAttendanceReturn => {
     onSuccess: () => {
       // Invalidate and refetch attendance queries
       queryClient.invalidateQueries({
-        queryKey: ["attendance", user?.eschool_id],
+        queryKey: ["attendance"],
       });
       queryClient.invalidateQueries({
-        queryKey: ["attendance-statistics", user?.eschool_id],
+        queryKey: ["attendance-statistics"],
       });
       queryClient.invalidateQueries({
-        queryKey: ["attendance-analytics", user?.eschool_id],
+        queryKey: ["attendance-analytics"],
       });
     },
   });
@@ -340,7 +406,7 @@ export const useAttendanceManagement = (
   analyticsParams?: UseAnalyticsParams,
   filterParams?: UseAttendanceParams
 ) => {
-  const { user } = useAuth();
+  const { user, getEschoolIdForRole, getPrimaryRole } = useAuth();
 
   // Use all the individual hooks with filter params
   const { records, meta, isLoadingRecords, recordsError, refetchRecords } =
@@ -390,12 +456,21 @@ export const useAttendanceManagement = (
     format?: "csv" | "pdf";
   }) => {
     try {
-      if (!user?.eschool_id) {
-        throw new Error("No eschool ID found");
+      if (!user?.roles) {
+        throw new Error("No user roles found");
+      }
+
+      // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
+      const primaryRole = user.roles.find((role) =>
+        ["coordinator", "staff", "supervisor"].includes(role.role)
+      );
+
+      if (!primaryRole) {
+        throw new Error("No valid role found for attendance management");
       }
 
       const exportParams = {
-        eschool_id: user.eschool_id,
+        eschool_id: primaryRole.eschool_id,
         ...params,
       };
 

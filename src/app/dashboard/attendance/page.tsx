@@ -207,7 +207,6 @@ const AttendancePage = () => {
     refetchStatistics,
     refetchAnalytics,
   } = useAttendanceManagement({ period: analyticsPeriod }, filterParams);
-  
 
   const attendanceForm = useForm<AttendanceFormData>({
     resolver: zodResolver(attendanceSchema),
@@ -216,7 +215,8 @@ const AttendancePage = () => {
       members: [{ member_id: "", is_present: true, notes: null }],
     },
   });
-  
+
+  console.log(
     `🚀 ~ page.tsx:211 ~ attendanceForm: ERROR`,
     attendanceForm.formState.errors
   );
@@ -243,13 +243,23 @@ const AttendancePage = () => {
       // Prepare FormData for file uploads
       const formData = new FormData();
 
-      if (!user || !user.eschool_id) {
+      if (!user || !user.roles || user.roles.length === 0) {
         toast("Error User tidak ditemukan");
         return;
       }
 
+      // Get eschool_id from user's primary role (coordinator or staff)
+      const primaryRole = user.roles.find((role) =>
+        ["coordinator", "staff", "supervisor"].includes(role.role)
+      );
+
+      if (!primaryRole) {
+        toast("Error: Anda tidak memiliki akses untuk mencatat kehadiran");
+        return;
+      }
+
       // Add basic fields
-      formData.append("eschool_id", String(user?.eschool_id));
+      formData.append("eschool_id", String(primaryRole.eschool_id));
       formData.append("date", data.date);
 
       // Process members data
@@ -288,28 +298,57 @@ const AttendancePage = () => {
     } catch (error: any) {
       console.error("Error creating attendance:", error);
 
-      // Handle validation errors from backend
-      const errorMessage =
-        error?.response?.data?.message ||
-        error?.message ||
-        "An unexpected error occurred";
-      const errorMessages = error?.response?.data?.messages || [];
+      // Handle backend validation errors
+      if (error?.response?.data?.errors) {
+        const backendErrors = error.response.data.errors;
 
-      if (Array.isArray(errorMessages) && errorMessages.length > 0) {
-        // Display all validation messages
-        toast.error("Failed to record attendance", {
-          description: (
-            <div className="space-y-1">
-              {errorMessages.map((msg: string, index: number) => (
-                <div key={index}>❌ {msg}</div>
-              ))}
-            </div>
-          ),
-        });
+        // Handle duplicate attendance records specifically
+        if (backendErrors.duplicate_records) {
+          // Show the specific duplicate records error message
+          toast.error(
+            error?.response?.data?.message ||
+              "Duplicate attendance records detected"
+          );
+        }
+        // Handle other field validation errors
+        else {
+          // Display errors for each field
+          Object.keys(backendErrors).forEach((fieldPath) => {
+            const errorMessage = backendErrors[fieldPath];
+            attendanceForm.setError(fieldPath as any, {
+              message: errorMessage,
+            });
+          });
+
+          // Also show a general toast error
+          toast.error(
+            "Failed to record attendance. Please check the form for errors."
+          );
+        }
       } else {
-        toast.error("Failed to record attendance", {
-          description: errorMessage,
-        });
+        // Handle other types of errors
+        const errorMessage =
+          error?.response?.data?.message ||
+          error?.message ||
+          "An unexpected error occurred";
+        const errorMessages = error?.response?.data?.messages || [];
+
+        if (Array.isArray(errorMessages) && errorMessages.length > 0) {
+          // Display all validation messages
+          toast.error("Failed to record attendance", {
+            description: (
+              <div className="space-y-1">
+                {errorMessages.map((msg: string, index: number) => (
+                  <div key={index}>❌ {msg}</div>
+                ))}
+              </div>
+            ),
+          });
+        } else {
+          toast.error("Failed to record attendance", {
+            description: errorMessage,
+          });
+        }
       }
     }
   };
@@ -368,7 +407,7 @@ const AttendancePage = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleDeleteRecord = (record: any) => {
+  const handleDeleteRecord = (record: unknown) => {
     setSelectedRecord(record);
     setIsDeleteDialogOpen(true);
   };
@@ -377,7 +416,7 @@ const AttendancePage = () => {
   const handleExportWithHook = async () => {
     try {
       // Handle export based on exportType
-      const exportParams: any = {
+      const exportParams: unknown = {
         format: exportFilters.format as "csv", // Only CSV for now
       };
 
@@ -415,7 +454,7 @@ const AttendancePage = () => {
       await exportRecords(exportParams);
       setIsExportDialogOpen(false);
       toast.success("Export completed successfully");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Export error:", error);
       toast.error(`Export failed: ${error?.message || "Unknown error"}`);
     }
@@ -425,12 +464,12 @@ const AttendancePage = () => {
   // Records are already filtered by the server based on filterParams
 
   // Custom tooltip for charts
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload, label }: unknown) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white p-4 border border-gray-200 rounded shadow">
           <p className="font-bold">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry: unknown, index: number) => (
             <p key={index} style={{ color: entry.color }}>
               {entry.name}: {entry.value}
             </p>
@@ -497,7 +536,9 @@ const AttendancePage = () => {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            {["koordinator", "staff"].includes(user.role) && (
+            {user.roles?.some((role) =>
+              ["coordinator", "staff", "supervisor"].includes(role.role)
+            ) && (
               <Dialog
                 open={isCreateDialogOpen}
                 onOpenChange={setIsCreateDialogOpen}
@@ -527,7 +568,7 @@ const AttendancePage = () => {
                         name="date"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Date</FormLabel>
+                            <FormLabel>Date G</FormLabel>
                             <FormControl>
                               <Popover>
                                 <PopoverTrigger asChild>
@@ -973,7 +1014,7 @@ const AttendancePage = () => {
                       Filter by Date
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
+                  <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
                       selected={dateFilter ? new Date(dateFilter) : undefined}
@@ -1037,8 +1078,7 @@ const AttendancePage = () => {
                     </TableRow>
                   ) : (
                     records?.map((record) => {
-                      
-
+                      console.log(`THIS IS  ~ record:`, record);
                       return (
                         <TableRow key={record.id}>
                           <TableCell className="font-medium">
@@ -1073,9 +1113,9 @@ const AttendancePage = () => {
                           </TableCell>
 
                           <TableCell>
-                            {record.proof_document_path ? (
+                            {record.proof_document ? (
                               <a
-                                href={`http://localhost:8000/storage/${record.proof_document_path}`}
+                                href={`${record.proof_document}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
@@ -1095,7 +1135,7 @@ const AttendancePage = () => {
                             )}
                           </TableCell>
                           <TableCell>
-                            {record.recorder.name || (
+                            {record.recorder?.name || (
                               <span className="italic text-xs text-gray-400">
                                 Nama tidak ditemukan
                               </span>
@@ -1110,7 +1150,11 @@ const AttendancePage = () => {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {["koordinator", "staff"].includes(user.role) && (
+                              {user.roles?.some((role) =>
+                                ["coordinator", "staff", "supervisor"].includes(
+                                  role.role
+                                )
+                              ) && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -1492,7 +1536,9 @@ const AttendancePage = () => {
               </div>
               <div>
                 <Label>Recorded By</Label>
-                <p className="text-gray-600">{selectedRecord.recorder.name}</p>
+                <p className="text-gray-600">
+                  {selectedRecord.recorder?.name || "Unknown"}
+                </p>
               </div>
             </div>
           )}
