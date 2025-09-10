@@ -67,23 +67,7 @@ interface KasSummary {
   };
 }
 
-interface StaffOverview {
-  overview_statistics: {
-    total_eschools: number;
-    total_members: number;
-    average_attendance_rate: number;
-    overall_collection_rate: number;
-  };
-  eschool_breakdown: Array<{
-    eschool_name: string;
-    coordinator_name: string;
-    treasurer_name: string;
-    total_members: number;
-    attendance_rate: number;
-    kas_collection_rate: number;
-    total_kas_collected: number;
-  }>;
-}
+// StaffOverview interface removed - now uses MultiRoleProfileData
 
 interface ApiResponse<T> {
   success: boolean;
@@ -135,18 +119,7 @@ class DashboardApi {
     }
   }
 
-  /**
-   * Get staff overview for staff dashboard
-   */
-  async getStaffOverview(): Promise<ApiResponse<StaffOverview>> {
-    try {
-      const response = await apiClient.get("/dashboard/staff/overview");
-      return response.data;
-    } catch (error: any) {
-      console.error("Error fetching staff overview:", error);
-      throw error;
-    }
-  }
+  // Staff overview now handled by multi-role-profile API
 }
 
 // Export singleton instance
@@ -158,6 +131,5 @@ export type {
   AttendanceStatistics,
   AttendanceAnalytics,
   KasSummary,
-  StaffOverview,
   ApiResponse,
 };

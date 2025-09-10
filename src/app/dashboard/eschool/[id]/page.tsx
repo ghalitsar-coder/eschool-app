@@ -134,6 +134,8 @@ export default function EschoolDetailPage() {
                     </div>
                   </div>
                   
+                  {/* Financial/Cash Management - Commented out as per requirements */}
+                  {/* 
                   <div className="flex items-center gap-3">
                     <div className="bg-purple-100 p-3 rounded-full">
                       <User className="h-5 w-5 text-purple-600" />
@@ -145,6 +147,7 @@ export default function EschoolDetailPage() {
                       </p>
                     </div>
                   </div>
+                  */}
                   
                   <div className="flex items-center gap-3">
                     <div className="bg-orange-100 p-3 rounded-full">

@@ -121,7 +121,8 @@ const EschoolList: React.FC<EschoolListProps> = ({
                   <TableHead>Description</TableHead>
                   <TableHead>Schedule</TableHead>
                   <TableHead>Coordinator</TableHead>
-                  <TableHead>Treasurer</TableHead>
+                  {/* Treasurer column commented out as per requirements */}
+                  {/* <TableHead>Treasurer</TableHead> */}
                   <TableHead>Members</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -177,6 +178,8 @@ const EschoolList: React.FC<EschoolListProps> = ({
                         <Badge variant="outline">Not assigned</Badge>
                       )}
                     </TableCell>
+                    {/* Treasurer cell commented out as per requirements */}
+                    {/* 
                     <TableCell>
                       {eschool.treasurer ? (
                         <div className="flex items-center gap-2">
@@ -194,6 +197,7 @@ const EschoolList: React.FC<EschoolListProps> = ({
                         <Badge variant="outline">Not assigned</Badge>
                       )}
                     </TableCell>
+                    */}
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="bg-yellow-100 p-1 rounded-full">

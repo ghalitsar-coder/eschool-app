@@ -4,7 +4,6 @@ import type {
   AttendanceStatistics,
   AttendanceAnalytics,
   KasSummary,
-  StaffOverview,
 } from "@/lib/api/dashboard";
 
 // Query keys for better cache management
@@ -15,8 +14,7 @@ export const dashboardQueryKeys = {
   attendanceAnalytics: (period?: string) =>
     [...dashboardQueryKeys.all, "attendance", "analytics", period] as const,
   kasSummary: () => [...dashboardQueryKeys.all, "kas", "summary"] as const,
-  staffOverview: () =>
-    [...dashboardQueryKeys.all, "staff", "overview"] as const,
+  // staffOverview removed - now uses multi-role-profile
 };
 
 // Hook for attendance statistics (coordinator dashboard)
@@ -60,18 +58,7 @@ export const useKasSummaryDashboard = () => {
   });
 };
 
-// Hook for staff overview (staff dashboard)
-export const useStaffOverview = () => {
-  return useQuery({
-    queryKey: dashboardQueryKeys.staffOverview(),
-    queryFn: async () => {
-      const response = await dashboardApi.getStaffOverview();
-      return response.data;
-    },
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    retry: 1,
-  });
-};
+// Staff dashboard now uses useMultiRoleProfile hook instead of separate API
 
 // Combined hook for coordinator dashboard
 export const useCoordinatorDashboard = (analyticsParams?: {
@@ -122,27 +109,5 @@ export const useBendaharaDashboard = () => {
 
     // Query objects for advanced usage
     kasSummaryQuery,
-  };
-};
-
-// Combined hook for staff dashboard
-export const useStaffDashboard = () => {
-  const overviewQuery = useStaffOverview();
-
-  return {
-    // Data
-    overview: overviewQuery.data,
-
-    // Loading states
-    isLoadingOverview: overviewQuery.isLoading,
-
-    // Error states
-    overviewError: overviewQuery.error,
-
-    // Refetch functions
-    refetchOverview: overviewQuery.refetch,
-
-    // Query objects for advanced usage
-    overviewQuery,
   };
 };

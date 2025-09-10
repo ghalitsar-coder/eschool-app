@@ -8,7 +8,8 @@ import DialogCreateEschool from "./components/DialogCreateEschool";
 import DialogUpdateEschool from "./components/DialogUpdateEschool";
 import DialogDeleteEschool from "./components/DialogDeleteEschool";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
-import FinancialAnalytics from "./components/FinancialAnalytics";
+// FinancialAnalytics component commented out as per requirements
+// import FinancialAnalytics from "./components/FinancialAnalytics";
 import AttendanceAnalytics from "./components/AttendanceAnalytics";
 import { useEschoolManagement } from "@/hooks/use-eschool";
 import { useAuth } from "@/hooks/use-auth";
@@ -18,7 +19,8 @@ import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, 
   BarChart3, 
-  Wallet, 
+  // Wallet icon commented out as it's only used for financial tab
+  // Wallet, 
   UserCheck 
 } from "lucide-react";
 
@@ -35,6 +37,9 @@ const EschoolManagement: React.FC = () => {
     updateEschool,
     deleteEschool,
     refetchEschools,
+    isCreatingEschool,
+    isUpdatingEschool,
+    isDeletingEschool,
   } = useEschoolManagement();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -42,7 +47,7 @@ const EschoolManagement: React.FC = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedEschool, setSelectedEschool] = useState<Eschool | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, financial, attendance
+  const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, attendance
 
   const handleCreateEschool = (data: any) => {
     createEschool(data, {
@@ -85,16 +90,18 @@ const EschoolManagement: React.FC = () => {
   // Error handling
   const hasErrors = eschoolsError || createEschoolError || updateEschoolError || deleteEschoolError;
 
-  // Tentukan tab yang tersedia berdasarkan role
+  // Tentukan tab yang tersedia berdasarkan role (financial tab commented out)
   const availableTabs = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "attendance", label: "Attendance", icon: UserCheck }
+    // Financial tab commented out as per requirements
+    // { id: "financial", label: "Financial", icon: Wallet }
   ];
 
-  // Hanya tampilkan tab financial untuk non-staff
-  if (user?.role !== "staff") {
-    availableTabs.splice(1, 0, { id: "financial", label: "Financial", icon: Wallet });
-  }
+  // Hanya tampilkan tab financial untuk non-staff (commented out)
+  // if (user?.role !== "staff") {
+  //   availableTabs.splice(1, 0, { id: "financial", label: "Financial", icon: Wallet });
+  // }
 
   // Jika tab yang aktif tidak tersedia, ubah ke tab pertama
   const validActiveTab = availableTabs.some(tab => tab.id === activeTab) 
@@ -149,9 +156,12 @@ const EschoolManagement: React.FC = () => {
         </>
       )}
 
+      {/* Financial tab content commented out as per requirements */}
+      {/* 
       {validActiveTab === "financial" && user?.role !== "staff" && (
         <FinancialAnalytics />
       )}
+      */}
 
       {validActiveTab === "attendance" && (
         <AttendanceAnalytics />
@@ -161,7 +171,7 @@ const EschoolManagement: React.FC = () => {
         isOpen={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onCreate={handleCreateEschool}
-        isCreating={false} // This should be connected to the mutation state
+        isCreating={isCreatingEschool}
       />
 
       <DialogUpdateEschool
@@ -169,7 +179,7 @@ const EschoolManagement: React.FC = () => {
         onOpenChange={setShowUpdateDialog}
         eschool={selectedEschool}
         onUpdate={handleUpdateEschool}
-        isUpdating={false} // This should be connected to the mutation state
+        isUpdating={isUpdatingEschool}
       />
 
       <DialogDeleteEschool
@@ -177,7 +187,7 @@ const EschoolManagement: React.FC = () => {
         onOpenChange={setShowDeleteDialog}
         eschool={selectedEschool}
         onDelete={handleDeleteEschool}
-        isDeleting={false} // This should be connected to the mutation state
+        isDeleting={isDeletingEschool}
       />
     </div>
   );

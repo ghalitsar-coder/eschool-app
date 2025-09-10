@@ -12,7 +12,8 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Building, 
-  CreditCard, 
+  // CreditCard icon commented out as it's only used for financial components
+  // CreditCard, 
   Users, 
   TrendingUp, 
   TrendingDown,
@@ -26,14 +27,17 @@ const AnalyticsDashboard = () => {
   const { user } = useAuth();
   const {
     eschoolData,
-    financialData,
+    // financialData commented out as it's only used for financial components
+    // financialData,
     attendanceData,
     isLoadingEschoolData,
-    isLoadingFinancialData,
+    // isLoadingFinancialData commented out as it's only used for financial components
+    // isLoadingFinancialData,
     isLoadingAttendanceData,
   } = useAnalytics();
 
-  // Helper function untuk format currency
+  // Helper function untuk format currency (commented out as it's only used for financial components)
+  /*
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -42,9 +46,11 @@ const AnalyticsDashboard = () => {
       maximumFractionDigits: 0,
     }).format(amount);
   };
+  */
 
   // Loading state skeletons
-  if (isLoadingEschoolData || isLoadingFinancialData || isLoadingAttendanceData) {
+  // isLoadingFinancialData removed from condition as it's only used for financial components
+  if (isLoadingEschoolData || isLoadingAttendanceData) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -100,7 +106,8 @@ const AnalyticsDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Financial Balance - Hanya untuk non-staff */}
+        {/* Financial Balance - Hanya untuk non-staff (commented out as per requirements) */}
+        {/* 
         {user?.role !== "staff" && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -119,6 +126,7 @@ const AnalyticsDashboard = () => {
             </CardContent>
           </Card>
         )}
+        */}
 
         {/* Active Percentage */}
         <Card>
@@ -145,7 +153,8 @@ const AnalyticsDashboard = () => {
         </Card>
       </div>
 
-      {/* Financial Summary - Hanya untuk non-staff */}
+      {/* Financial Summary - Hanya untuk non-staff (commented out as per requirements) */}
+      {/* 
       {user?.role !== "staff" && (
         <Card>
           <CardHeader>
@@ -180,8 +189,10 @@ const AnalyticsDashboard = () => {
           </CardContent>
         </Card>
       )}
+      */}
 
-      {/* Monthly Kas Distribution - Hanya untuk non-staff */}
+      {/* Monthly Kas Distribution - Hanya untuk non-staff (commented out as per requirements) */}
+      {/* 
       {user?.role !== "staff" && eschoolData?.monthlyKasDistribution && eschoolData.monthlyKasDistribution.length > 0 && (
         <Card>
           <CardHeader>
@@ -210,6 +221,7 @@ const AnalyticsDashboard = () => {
           </CardContent>
         </Card>
       )}
+      */}
     </div>
   );
 };

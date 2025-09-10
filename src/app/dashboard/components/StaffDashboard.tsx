@@ -8,34 +8,63 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useStaffDashboard } from "@/hooks/use-dashboard";
-import { useMemberProfileData } from "../../../hooks/use-member-profile";
 import { useAuth } from "@/hooks/use-auth";
 import { useMultiRoleProfile } from "@/hooks/use-multi-role-profile";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, School, TrendingUp, CreditCard } from "lucide-react";
+import { Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const StaffDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { data: profileData } = useMultiRoleProfile();
+  console.log(`THIS IS  ~ user:`, user);
+  const { profileData, isLoadingProfile, profileError } = useMultiRoleProfile();
 
-  // Get staff role and eschool_id
-  const staffRole = user?.roles?.find((role) => role.role === "staff");
-  const selectedEschoolId = staffRole?.eschool_id;
+  // Check if user has supervisor role
+  const hasSupervisorRole = profileData?.eschool_roles?.some(
+    (role) => role.role_in_eschool === "Staff"
+  );
 
-  const { overview, isLoadingOverview, overviewError } = useStaffDashboard();
+  // Calculate overview statistics from eschool_roles data
+  const overviewStats = React.useMemo(() => {
+    if (!profileData?.eschool_roles) return null;
 
-  // const { profileData, isLoadingProfile, profileError } =
-  //   useMemberProfileData();
+    const staffRoles = profileData.eschool_roles.filter(
+      (role) => role.role_in_eschool === "Staff"
+    );
 
-  // Use dashboard data if available, fallback to profile data
-  const finalData = overview || profileData;
-  const finalIsLoading = isLoadingOverview || isLoadingProfile;
-  const finalError = overviewError || profileError;
+    const totalEschools = staffRoles.length;
+    const totalMembers = staffRoles.reduce(
+      (sum, role) => sum + (role.total_members || 0),
+      0
+    );
+    const avgAttendance =
+      staffRoles.length > 0
+        ? staffRoles.reduce(
+            (sum, role) => sum + (role.attendance_rate || 0),
+            0
+          ) / staffRoles.length
+        : 0;
+    // Supervisor tidak boleh melihat data kas
+
+    return {
+      total_eschools: totalEschools,
+      total_members: totalMembers,
+      average_attendance_rate: Math.round(avgAttendance * 100) / 100,
+    };
+  }, [profileData]);
+
+  const finalData = {
+    overview_statistics: overviewStats,
+    eschool_breakdown:
+      profileData?.eschool_roles?.filter(
+        (role) => role.role_in_eschool === "Staff"
+      ) || [],
+  };
+  const finalIsLoading = isLoadingProfile;
+  const finalError = profileError;
 
   // Show message if user is not a supervisor
-  if (selectedRole !== "supervisor") {
+  if (!hasSupervisorRole && !finalIsLoading) {
     return (
       <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
         <div className="px-4 lg:px-6">
@@ -48,7 +77,8 @@ const StaffDashboard: React.FC = () => {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Please switch to your staff role to view overview data.
+                Please contact administrator to assign you as staff/supervisor
+                role.
               </p>
             </CardContent>
           </Card>
@@ -129,15 +159,7 @@ const StaffDashboard: React.FC = () => {
     );
   }
 
-  // Helper function untuk format currency
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  // Supervisor tidak boleh melihat data kas
 
   return (
     <div className="flex flex-col gap-6 py-6">
@@ -151,7 +173,7 @@ const StaffDashboard: React.FC = () => {
             Overview of all eschools in the system
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="bg-green-50 p-3 rounded-lg">
             <p className="text-sm text-green-700">Total Eschools</p>
             <p className="text-2xl font-bold text-green-900">
@@ -173,12 +195,14 @@ const StaffDashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className="bg-orange-50 p-3 rounded-lg">
-            <p className="text-sm text-orange-700">Collection Rate</p>
+          {/* <div className="bg-orange-50 p-3 rounded-lg">
+            <p className="text-sm text-orange-700">Total Kas Collected</p>
             <p className="text-2xl font-bold text-orange-900">
-              {finalData?.overview_statistics?.overall_collection_rate || 0}%
+              {formatCurrency(
+                finalData?.overview_statistics?.total_kas_collected || 0
+              )}
             </p>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
 
@@ -190,7 +214,7 @@ const StaffDashboard: React.FC = () => {
         <CardContent>
           <div className="space-y-4">
             {finalData?.eschool_breakdown?.map(
-              (eschool: any, index: number) => (
+              (eschool: unknown, index: number) => (
                 <div key={index} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start mb-2">
                     <div>
@@ -204,21 +228,21 @@ const StaffDashboard: React.FC = () => {
                       {eschool.total_members} members
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Attendance</p>
                       <p className="font-medium">{eschool.attendance_rate}%</p>
                     </div>
-                    <div>
+                    {/* <div>
                       <p className="text-muted-foreground">Kas Collection</p>
                       <p className="font-medium">
-                        {eschool.kas_collection_rate}%
+                        {formatCurrency(eschool.total_kas_collected || 0)}
                       </p>
-                    </div>
+                    </div> */}
                     <div>
-                      <p className="text-muted-foreground">Total Collected</p>
+                      <p className="text-muted-foreground">Members</p>
                       <p className="font-medium">
-                        {formatCurrency(eschool.total_kas_collected)}
+                        {eschool.total_members || 0} people
                       </p>
                     </div>
                   </div>

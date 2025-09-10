@@ -11,12 +11,12 @@ interface HeaderEschoolProps {
   setSearchTerm: (term: string) => void;
 }
 
-const HeaderEschool: React.FC<HeaderEschoolProps> = ({ 
+const HeaderEschool: React.FC<HeaderEschoolProps> = ({
   setShowCreateDialog,
   searchTerm,
-  setSearchTerm
+  setSearchTerm,
 }) => {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
 
   return (
     <div className="px-4 lg:px-6">
@@ -41,8 +41,11 @@ const HeaderEschool: React.FC<HeaderEschoolProps> = ({
             />
           </div>
           <div className="flex gap-2">
-            {user?.role === "staff" && (
-              <Button onClick={() => setShowCreateDialog(true)} className="whitespace-nowrap">
+            {hasRole("supervisor") && (
+              <Button
+                onClick={() => setShowCreateDialog(true)}
+                className="whitespace-nowrap"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Eschool
               </Button>

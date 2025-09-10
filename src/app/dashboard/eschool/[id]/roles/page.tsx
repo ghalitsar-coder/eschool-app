@@ -20,7 +20,8 @@ export default function EschoolRoleManagementPage() {
   const router = useRouter()
   const eschoolId = Array.isArray(params.id) ? parseInt(params.id[0]) : parseInt(params.id)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editingRole, setEditingRole] = useState<'coordinator' | 'treasurer' | null>(null)
+  // Editing role type limited to coordinator only (treasurer removed as per requirements)
+  const [editingRole, setEditingRole] = useState<'coordinator' | null>(null)
   const [userId, setUserId] = useState('')
   const queryClient = useQueryClient()
 
@@ -47,12 +48,15 @@ export default function EschoolRoleManagementPage() {
     },
   })
 
-  const handleEditRole = (role: 'coordinator' | 'treasurer') => {
+  // Handle edit role function (treasurer option removed as per requirements)
+  const handleEditRole = (role: 'coordinator') => {
     setEditingRole(role)
     setUserId(
       role === 'coordinator' 
         ? (eschool?.coordinator_id?.toString() || '') 
-        : (eschool?.treasurer_id?.toString() || '')
+        // Treasurer ID removed as per requirements
+        // : (eschool?.treasurer_id?.toString() || '')
+        : ''
     )
     setIsEditDialogOpen(true)
   }
@@ -60,9 +64,12 @@ export default function EschoolRoleManagementPage() {
   const handleUpdateRole = () => {
     if (!editingRole) return
     
+    // Update data limited to coordinator only (treasurer removed as per requirements)
     const updateData = editingRole === 'coordinator' 
       ? { coordinator_id: userId ? parseInt(userId) : null } 
-      : { treasurer_id: userId ? parseInt(userId) : null }
+      // Treasurer ID removed as per requirements
+      // : { treasurer_id: userId ? parseInt(userId) : null }
+      : {}
       
     updateMutation.mutate({ id: eschoolId, data: updateData })
   }
@@ -119,16 +126,15 @@ export default function EschoolRoleManagementPage() {
       <div className="px-4 lg:px-6">
         {isLoading ? (
           <div className="space-y-4">
-            {[...Array(2)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-1/4" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full" />
-                </CardContent>
-              </Card>
-            ))}
+            {/* Only one skeleton for coordinator (treasurer removed as per requirements) */}
+            <Card>
+              <CardHeader>
+                <Skeleton className="h-6 w-1/4" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-4 w-full" />
+              </CardContent>
+            </Card>
           </div>
         ) : eschool ? (
           <div className="space-y-6">
@@ -164,7 +170,8 @@ export default function EschoolRoleManagementPage() {
               </CardContent>
             </Card>
 
-            {/* Treasurer */}
+            {/* Treasurer - Commented out as per requirements */}
+            {/* 
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -195,6 +202,7 @@ export default function EschoolRoleManagementPage() {
                 )}
               </CardContent>
             </Card>
+            */}
           </div>
         ) : (
           <Alert>
@@ -212,12 +220,14 @@ export default function EschoolRoleManagementPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingRole === 'coordinator' ? "Assign Coordinator" : "Assign Treasurer"}
+              {editingRole === 'coordinator' ? "Assign Coordinator" : "Assign Role"}
             </DialogTitle>
             <DialogDescription>
               {editingRole === 'coordinator' 
                 ? "Enter the user ID to assign as coordinator for this eschool" 
-                : "Enter the user ID to assign as treasurer for this eschool"}
+                // Treasurer description removed as per requirements
+                // : "Enter the user ID to assign as treasurer for this eschool"}
+                : "Enter the user ID to assign a role for this eschool"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

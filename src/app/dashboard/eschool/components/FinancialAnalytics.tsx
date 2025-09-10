@@ -1,3 +1,5 @@
+// FinancialAnalytics component commented out as per requirements
+/*
 "use client";
 
 import React, { useMemo } from "react";
@@ -334,4 +336,9 @@ const FinancialAnalytics = () => {
   );
 };
 
+export default FinancialAnalytics;
+*/
+
+// Empty component to satisfy import requirements
+const FinancialAnalytics = () => null;
 export default FinancialAnalytics;
