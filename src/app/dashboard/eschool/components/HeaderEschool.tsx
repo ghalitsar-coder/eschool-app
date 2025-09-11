@@ -7,12 +7,14 @@ import { useAuth } from "@/hooks/use-auth";
 
 interface HeaderEschoolProps {
   setShowCreateDialog: (show: boolean) => void;
+  setShowCreateUserDialog: (show: boolean) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
 }
 
 const HeaderEschool: React.FC<HeaderEschoolProps> = ({
   setShowCreateDialog,
+  setShowCreateUserDialog,
   searchTerm,
   setSearchTerm,
 }) => {
@@ -48,6 +50,15 @@ const HeaderEschool: React.FC<HeaderEschoolProps> = ({
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Eschool
+              </Button>
+            )}
+            {hasRole("supervisor") && (
+              <Button
+                onClick={() => setShowCreateUserDialog(true)}
+                className="whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create User
               </Button>
             )}
             <Button variant="outline" size="icon">

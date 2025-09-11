@@ -5,6 +5,7 @@ import HeaderEschool from "./components/HeaderEschool";
 import EschoolList from "./components/EschoolList";
 import ErrorEschoolAlert from "./components/ErrorEschoolAlert";
 import DialogCreateEschool from "./components/DialogCreateEschool";
+import DialogCreateUser from "./components/DialogCreateUser";
 import DialogUpdateEschool from "./components/DialogUpdateEschool";
 import DialogDeleteEschool from "./components/DialogDeleteEschool";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
@@ -21,8 +22,11 @@ import {
   BarChart3, 
   // Wallet icon commented out as it's only used for financial tab
   // Wallet, 
-  UserCheck 
+  UserCheck,
+  UserPlus
 } from "lucide-react";
+import { createUser } from "@/lib/api/user"; // Import the user service
+import { toast } from "sonner"; // Assuming you're using sonner for toast notifications
 
 const EschoolManagement: React.FC = () => {
   const { user } = useAuth();
@@ -43,11 +47,13 @@ const EschoolManagement: React.FC = () => {
   } = useEschoolManagement();
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedEschool, setSelectedEschool] = useState<Eschool | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, attendance
+  const [isCreatingUser, setIsCreatingUser] = useState(false); // State for user creation loading
 
   const handleCreateEschool = (data: any) => {
     createEschool(data, {
@@ -112,6 +118,7 @@ const EschoolManagement: React.FC = () => {
     <div className="flex flex-col gap-6 py-6 px-5">
       <HeaderEschool 
         setShowCreateDialog={setShowCreateDialog}
+        setShowCreateUserDialog={setShowCreateUserDialog}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
       />
@@ -172,6 +179,26 @@ const EschoolManagement: React.FC = () => {
         onOpenChange={setShowCreateDialog}
         onCreate={handleCreateEschool}
         isCreating={isCreatingEschool}
+      />
+
+      <DialogCreateUser
+        isOpen={showCreateUserDialog}
+        onOpenChange={setShowCreateUserDialog}
+        onCreate={async (data) => {
+          setIsCreatingUser(true);
+          try {
+            await createUser(data);
+            toast.success("User created successfully");
+            setShowCreateUserDialog(false);
+            // Optionally refetch users if you have a user list
+          } catch (error: any) {
+            console.error("Error creating user:", error);
+            toast.error(error?.response?.data?.message || "Failed to create user");
+          } finally {
+            setIsCreatingUser(false);
+          }
+        }}
+        isCreating={isCreatingUser}
       />
 
       <DialogUpdateEschool

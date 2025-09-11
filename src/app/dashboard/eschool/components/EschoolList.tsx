@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, Users, User, Edit, Trash2, Building } from "lucide-react";
+import { Search, Users, User, Edit, Trash2, Building, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
 
 interface EschoolListProps {
   eschools: Eschool[];
@@ -41,7 +42,8 @@ const EschoolList: React.FC<EschoolListProps> = ({
   searchTerm,
   setSearchTerm,
 }) => {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  const router = useRouter();
 
   const filteredEschools = useMemo(() => {
     if (!eschools) return [];
@@ -209,7 +211,14 @@ const EschoolList: React.FC<EschoolListProps> = ({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {user?.role === "staff" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => router.push(`/dashboard/eschool/${eschool.id}`)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {hasRole("supervisor") && (
                           <>
                             <Button
                               variant="ghost"
