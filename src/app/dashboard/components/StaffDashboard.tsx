@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 
 const StaffDashboard: React.FC = () => {
   const { user } = useAuth();
-  console.log(`THIS IS  ~ user:`, user);
+
   const { profileData, isLoadingProfile, profileError } = useMultiRoleProfile();
 
   // Check if user has supervisor role

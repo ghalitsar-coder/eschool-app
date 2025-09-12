@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -48,6 +48,7 @@ import {
   Settings,
   Loader2,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 const eschoolSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -77,27 +78,156 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
   isUpdating,
 }) => {
   const { user } = useAuth();
+
+  const { data: eligibleTreasurers = [], isLoading: loadingTreasurers } =
+    useEligibleTreasurers();
+
+  const { data: eligibleCoordinators = [], isLoading: loadingCoordinators } =
+    useEligibleCoordinators();
+
+  // Prepare coordinators options - prioritize current coordinator from eschool
+  const coordinatorOptions = React.useMemo(() => {
+    const options = [];
+
+    // Add current coordinator from eschool if exists (always show first)
+    if (eschool?.coordinator) {
+      options.push({
+        user_id: eschool.coordinator_id,
+        name: eschool.coordinator.name,
+        email: eschool.coordinator.email,
+        isCurrent: true,
+      });
+    }
+
+    // Add other eligible coordinators (filter out current if already added)
+    eligibleCoordinators.forEach((coord) => {
+      if (!eschool?.coordinator || coord.user_id !== eschool.coordinator_id) {
+        options.push({
+          ...coord,
+          isCurrent: false,
+        });
+      }
+    });
+
+    return options;
+  }, [eschool, eligibleCoordinators]);
+
+  // Prepare treasurers options - prioritize current treasurer from eschool
+  const treasurerOptions = React.useMemo(() => {
+    const options = [];
+
+    // Add current treasurer from eschool if exists (always show first)
+    if (eschool?.treasurer) {
+      options.push({
+        user_id: eschool.treasurer_id,
+        name: eschool.treasurer.name,
+        email: eschool.treasurer.email,
+        isCurrent: true,
+      });
+    }
+
+    // Add other eligible treasurers (filter out current if already added)
+    eligibleTreasurers.forEach((treas) => {
+      if (!eschool?.treasurer || treas.user_id !== eschool.treasurer_id) {
+        options.push({
+          ...treas,
+          isCurrent: false,
+        });
+      }
+    });
+
+    return options;
+  }, [eschool, eligibleTreasurers]);
+
+  console.log("=== OPTIONS DEBUG ===");
+  console.log("eschool:", eschool);
+  console.log("coordinatorOptions:", coordinatorOptions);
+  console.log("treasurerOptions:", treasurerOptions);
+
   const form = useForm<EschoolFormData>({
     resolver: zodResolver(eschoolSchema),
     defaultValues: {
       name: "",
       description: "",
-      coordinator_id: "none",
-      treasurer_id: "none",
+      coordinator_id: "__none__",
+      treasurer_id: "__none__",
       schedule_days: [],
       monthly_kas_amount: "",
       is_active: true,
     },
   });
 
-  const { data: treasurers = [], isLoading: loadingTreasurers } =
-    useEligibleTreasurers();
-  console.log(`THIS IS  ~ treasurers:`, treasurers);
-  const { data: coordinators = [], isLoading: loadingCoordinators } =
-    useEligibleCoordinators();
-  console.log(`THIS IS  ~ coordinators:`, coordinators);
+  // Reset form when eschool changes
+  React.useEffect(() => {
+    if (eschool && isOpen) {
+      console.log("=== RESETTING FORM ===");
 
-  const onSubmit = (second) => { third }
+      const resetValues = {
+        name: eschool.name || "",
+        description: eschool.description || "",
+        coordinator_id: eschool.coordinator_id
+          ? String(eschool.coordinator_id)
+          : "__none__",
+        treasurer_id: eschool.treasurer_id
+          ? String(eschool.treasurer_id)
+          : "__none__",
+        schedule_days: eschool.schedule_days || [],
+        monthly_kas_amount: eschool.monthly_kas_amount?.toString() || "",
+        is_active: eschool.is_active ?? true,
+      };
+
+      console.log("Reset values:", resetValues);
+      form.reset(resetValues);
+    }
+  }, [eschool, isOpen, form]);
+
+  // Helper function to get display name for coordinator
+  const getCoordinatorDisplayName = (value: string | undefined) => {
+    if (!value || value === "__none__") return null;
+    const coordinator = coordinatorOptions.find(
+      (c) => String(c.user_id) === value
+    );
+    return coordinator ? coordinator.name : null;
+  };
+
+  // Helper function to get display name for treasurer
+  const getTreasurerDisplayName = (value: string | undefined) => {
+    if (!value || value === "__none__") return null;
+    const treasurer = treasurerOptions.find((t) => String(t.user_id) === value);
+    return treasurer ? treasurer.name : null;
+  };
+
+  const onSubmit = (data: EschoolFormData) => {
+    if (!eschool) return;
+
+    console.log("Submitting form data:", data);
+
+    const payload: any = {
+      ...data,
+      coordinator_id:
+        data.coordinator_id === "__none__"
+          ? null
+          : data.coordinator_id
+          ? parseInt(data.coordinator_id)
+          : null,
+      treasurer_id:
+        data.treasurer_id === "__none__"
+          ? null
+          : data.treasurer_id
+          ? parseInt(data.treasurer_id)
+          : null,
+      ...(data.monthly_kas_amount && {
+        monthly_fee_amount: parseFloat(data.monthly_kas_amount),
+      }),
+    };
+
+    Object.keys(payload).forEach(
+      (key) => payload[key] === undefined && delete payload[key]
+    );
+
+    console.log("Final payload:", payload);
+    onUpdate(eschool.id, payload);
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -105,7 +235,7 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building className="h-5 w-5 text-primary" />
-            Update Eschool
+            Update Eschool: {eschool?.name}
           </DialogTitle>
           <DialogDescription>
             Modify the details of this extracurricular activity.
@@ -167,63 +297,73 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
                 <p className="text-sm text-muted-foreground">
                   Select a coordinator for this eschool from eligible teachers.
                 </p>
+                <div className="text-xs bg-blue-50 p-2 rounded">
+                  Current: {form.watch("coordinator_id")} | Display:{" "}
+                  {getCoordinatorDisplayName(form.watch("coordinator_id"))} |
+                  Options: {coordinatorOptions.length}
+                  {eschool?.coordinator && (
+                    <div>Eschool Coordinator: {eschool.coordinator.name}</div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
                   control={form.control}
                   name="coordinator_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Select Coordinator</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choose a coordinator" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {loadingCoordinators ? (
-                            <SelectItem value="__loading__" disabled>
-                              Loading coordinators...
-                            </SelectItem>
-                          ) : (
-                            <>
-                              <SelectItem value="none">
-                                No coordinator
-                              </SelectItem>
-                              {coordinators.map((coordinator) => (
-                                <SelectItem
-                                  key={coordinator.id}
-                                  value={String(coordinator.id)}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <UserIcon className="h-4 w-4" />
-                                    <span>{coordinator.name}</span>
-                                    <span className="text-muted-foreground text-xs">
-                                      ({coordinator.email})
+                  render={({ field }) => {
+                    const displayName = getCoordinatorDisplayName(field.value);
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Select Coordinator</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || "__none__"}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={
+                                  displayName || "Choose a coordinator"
+                                }
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {/* <SelectItem value="__none__">
+                              No coordinator assigned
+                            </SelectItem> */}
+                            {coordinatorOptions.map((coordinator) => (
+                              <SelectItem
+                                key={coordinator.user_id}
+                                value={String(coordinator.user_id)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <UserIcon className="h-4 w-4" />
+                                  <span>{coordinator.name}</span>
+                                  {coordinator.isCurrent && (
+                                    <span className="text-green-600 text-xs font-medium">
+                                      (Current)
                                     </span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                                  )}
+                                  <span className="text-muted-foreground text-xs">
+                                    ({coordinator.email})
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                            {loadingCoordinators && (
+                              <SelectItem value="__loading__" disabled>
+                                Loading more coordinators...
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
-                {eschool?.coordinator && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <p className="text-sm text-blue-800">
-                      <span className="font-medium">Current Coordinator:</span>{" "}
-                      {eschool.coordinator.name} ({eschool.coordinator.email})
-                    </p>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -239,61 +379,73 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
                 <p className="text-sm text-muted-foreground">
                   Select a treasurer for this eschool.
                 </p>
+                <div className="text-xs bg-green-50 p-2 rounded">
+                  Current: {form.watch("treasurer_id")} | Display:{" "}
+                  {getTreasurerDisplayName(form.watch("treasurer_id"))} |
+                  Options: {treasurerOptions.length}
+                  {eschool?.treasurer && (
+                    <div>Eschool Treasurer: {eschool.treasurer.name}</div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
                   control={form.control}
                   name="treasurer_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Select Treasurer</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Choose a treasurer" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {loadingTreasurers ? (
-                            <SelectItem value="__loading__" disabled>
-                              Loading treasurers...
-                            </SelectItem>
-                          ) : (
-                            <>
-                              {/* <SelectItem value="none">No treasurer</SelectItem> */}
-                              {treasurers?.map((treasurer) => (
-                                <SelectItem
-                                  key={treasurer.id}
-                                  value={String(treasurer.id)}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <UserIcon className="h-4 w-4" />
-                                    <span>{treasurer.name}</span>
-                                    <span className="text-muted-foreground text-xs">
-                                      ({treasurer.email})
+                  render={({ field }) => {
+                    const displayName = getTreasurerDisplayName(field.value);
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Select Treasurer</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value || "__none__"}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={
+                                  displayName || "Choose a treasurer"
+                                }
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {/* <SelectItem value="__none__">
+                              No treasurer assigned
+                            </SelectItem> */}
+                            {treasurerOptions.map((treasurer) => (
+                              <SelectItem
+                                key={treasurer.user_id}
+                                value={String(treasurer.user_id)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <UserIcon className="h-4 w-4" />
+                                  <span>{treasurer.name}</span>
+                                  {treasurer.isCurrent && (
+                                    <span className="text-green-600 text-xs font-medium">
+                                      (Current)
                                     </span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </>
-                          )}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                                  )}
+                                  <span className="text-muted-foreground text-xs">
+                                    ({treasurer.email})
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                            {loadingTreasurers && (
+                              <SelectItem value="__loading__" disabled>
+                                Loading more treasurers...
+                              </SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
-                {eschool?.treasurer && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <p className="text-sm text-blue-800">
-                      <span className="font-medium">Current Treasurer:</span>{" "}
-                      {eschool.treasurer.name} ({eschool.treasurer.email})
-                    </p>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -306,9 +458,6 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
                   <Settings className="h-4 w-4" />
                   Additional Settings
                 </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Configure optional settings for this eschool.
-                </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -332,6 +481,28 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
                           />
                         </FormControl>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="is_active"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Active Status
+                          </FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Enable or disable this eschool
+                          </p>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
                       </FormItem>
                     )}
                   />
@@ -390,7 +561,6 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Update Eschool
                   </>
                 )}
               </Button>

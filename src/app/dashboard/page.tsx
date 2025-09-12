@@ -18,8 +18,6 @@ import { User } from "lucide-react";
 export default function Page() {
   const { user, isAuthenticated } = useAuth();
 
-  console.log(`THIS IS  ~ user:`, user);
-
   // Loading state - check if user data is still being fetched
   if (isAuthenticated && !user) {
     return (
@@ -116,4 +114,3 @@ export default function Page() {
     </div>
   );
 }
- 

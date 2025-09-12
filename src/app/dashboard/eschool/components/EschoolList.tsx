@@ -47,7 +47,7 @@ const EschoolList: React.FC<EschoolListProps> = ({
 
   const filteredEschools = useMemo(() => {
     if (!eschools) return [];
-    
+
     return eschools.filter((eschool) => {
       return (
         eschool.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -130,8 +130,11 @@ const EschoolList: React.FC<EschoolListProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEschools.map((eschool) => (
-                  <TableRow key={eschool.id} className="hover:bg-muted/50">
+                {filteredEschools.map((eschool, i) => (
+                  <TableRow
+                    key={`${eschool.id}-${i}`}
+                    className="hover:bg-muted/50"
+                  >
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
                         <div className="bg-primary/10 p-2 rounded-lg">
@@ -151,10 +154,16 @@ const EschoolList: React.FC<EschoolListProps> = ({
                       </div>
                     </TableCell>
                     <TableCell>
-                      {eschool.schedule_days && Array.isArray(eschool.schedule_days) && eschool.schedule_days.length > 0 ? (
+                      {eschool.schedule_days &&
+                      Array.isArray(eschool.schedule_days) &&
+                      eschool.schedule_days.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {eschool.schedule_days.map((day, index) => (
-                            <Badge key={index} variant="secondary" className="text-xs">
+                            <Badge
+                              key={index}
+                              variant="secondary"
+                              className="text-xs"
+                            >
                               {day}
                             </Badge>
                           ))}
@@ -170,7 +179,9 @@ const EschoolList: React.FC<EschoolListProps> = ({
                             <User className="h-3 w-3 text-green-600" />
                           </div>
                           <div>
-                            <div className="text-sm font-medium">{eschool.coordinator.name}</div>
+                            <div className="text-sm font-medium">
+                              {eschool.coordinator.name}
+                            </div>
                             <div className="text-xs text-muted-foreground truncate max-w-[150px]">
                               {eschool.coordinator.email}
                             </div>
@@ -205,8 +216,12 @@ const EschoolList: React.FC<EschoolListProps> = ({
                         <div className="bg-yellow-100 p-1 rounded-full">
                           <Users className="h-3 w-3 text-yellow-600" />
                         </div>
-                        <span className="font-medium">{eschool.members_count}</span>
-                        <span className="text-xs text-muted-foreground">members</span>
+                        <span className="font-medium">
+                          {eschool.members_count}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          members
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -214,7 +229,9 @@ const EschoolList: React.FC<EschoolListProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => router.push(`/dashboard/eschool/${eschool.id}`)}
+                          onClick={() =>
+                            router.push(`/dashboard/eschool/${eschool.id}`)
+                          }
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -223,7 +240,9 @@ const EschoolList: React.FC<EschoolListProps> = ({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => onEdit(eschool)}
+                              onClick={() => {
+                                onEdit(eschool);
+                              }}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>

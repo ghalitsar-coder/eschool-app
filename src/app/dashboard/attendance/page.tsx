@@ -170,9 +170,6 @@ export default function AttendancePage() {
   const handleUpdateAttendance = async (data: UpdateAttendanceFormData) => {
     if (!selectedRecord) return;
 
-    console.log("Selected record:", selectedRecord);
-    console.log("Selected record ID:", selectedRecord.id);
-
     try {
       const formData = new FormData();
       formData.append("is_present", data.is_present ? "1" : "0");
