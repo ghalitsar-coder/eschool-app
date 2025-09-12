@@ -8,6 +8,7 @@ import DialogCreateEschool from "./components/DialogCreateEschool";
 import DialogCreateUser from "./components/DialogCreateUser";
 import DialogUpdateEschool from "./components/DialogUpdateEschool";
 import DialogDeleteEschool from "./components/DialogDeleteEschool";
+import DialogEschoolDetail from "./components/DialogEschoolDetail";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 // FinancialAnalytics component commented out as per requirements
 // import FinancialAnalytics from "./components/FinancialAnalytics";
@@ -50,6 +51,7 @@ const EschoolManagement: React.FC = () => {
   const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [selectedEschool, setSelectedEschool] = useState<Eschool | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, attendance
@@ -91,6 +93,11 @@ const EschoolManagement: React.FC = () => {
   const handleDelete = (eschool: Eschool) => {
     setSelectedEschool(eschool);
     setShowDeleteDialog(true);
+  };
+
+  const handleViewDetail = (eschool: Eschool) => {
+    setSelectedEschool(eschool);
+    setShowDetailDialog(true);
   };
 
   // Error handling
@@ -157,6 +164,7 @@ const EschoolManagement: React.FC = () => {
             isLoading={isLoadingEschools}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onViewDetail={handleViewDetail}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
           />
@@ -215,6 +223,12 @@ const EschoolManagement: React.FC = () => {
         eschool={selectedEschool}
         onDelete={handleDeleteEschool}
         isDeleting={isDeletingEschool}
+      />
+
+      <DialogEschoolDetail
+        isOpen={showDetailDialog}
+        onOpenChange={setShowDetailDialog}
+        eschool={selectedEschool}
       />
     </div>
   );

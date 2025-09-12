@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -30,6 +30,7 @@ interface EschoolListProps {
   isLoading: boolean;
   onEdit: (eschool: Eschool) => void;
   onDelete: (eschool: Eschool) => void;
+  onViewDetail: (eschool: Eschool) => void;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
 }
@@ -39,10 +40,11 @@ const EschoolList: React.FC<EschoolListProps> = ({
   isLoading,
   onEdit,
   onDelete,
+  onViewDetail,
   searchTerm,
   setSearchTerm,
 }) => {
-  const { user, hasRole } = useAuth();
+  const { hasRole } = useAuth();
   const router = useRouter();
 
   const filteredEschools = useMemo(() => {
@@ -130,9 +132,9 @@ const EschoolList: React.FC<EschoolListProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEschools.map((eschool, i) => (
+                {filteredEschools.map((eschool) => (
                   <TableRow
-                    key={`${eschool.id}-${i}`}
+                    key={eschool.id}
                     className="hover:bg-muted/50"
                   >
                     <TableCell className="font-medium">
@@ -229,9 +231,7 @@ const EschoolList: React.FC<EschoolListProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() =>
-                            router.push(`/dashboard/eschool/${eschool.id}`)
-                          }
+                          onClick={() => onViewDetail(eschool)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
