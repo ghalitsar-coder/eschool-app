@@ -133,6 +133,7 @@ export const kasApi = {
     try {
       // For now, we'll use a fixed eschool_id. In real implementation, this should come from user context.
       const response = await apiClient.get(`/kas/records/${eschoolId}`, { params:payload });
+      console.log(`THIS IS  ~ response:`, response)
 
       // Transform backend response to match frontend expectations
       const transformedData = {

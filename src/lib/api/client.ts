@@ -11,7 +11,6 @@ const apiClient = axios.create({
   timeout: 10000,
   withCredentials: true, // Important for cookies
   headers: {
-    "Content-Type": "application/json",
     Accept: "application/json",
     "X-Requested-With": "XMLHttpRequest", // Important for Laravel
   },

@@ -83,7 +83,6 @@ const ProfilePage: React.FC = () => {
   }
 
   const { user, profile, student, teacher, eschools, summary } = profileData;
-  console.log(`THIS IS  ~ eschools:`, eschools)
 
   return (
     <div className="flex flex-col gap-6 py-6">

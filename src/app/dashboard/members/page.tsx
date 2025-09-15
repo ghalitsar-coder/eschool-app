@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useMemberManagement } from "@/hooks/use-member-management";
-import { useAuthStore } from "@/lib/stores/auth";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -52,7 +52,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const MemberManagementPage = () => {
-  const { user } = useAuthStore();
+  const { user } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -62,11 +62,10 @@ const MemberManagementPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [roleFilter, setRoleFilter] = useState("all");
 
-  // Form state for assigning role
+  // Form state for recruiting member
   const [assignRoleForm, setAssignRoleForm] = useState({
     user_id: "",
     role: "member",
-    student_id: "",
   });
 
   const {
@@ -94,8 +93,7 @@ const MemberManagementPage = () => {
     perPage: 15,
     search: searchTerm,
     roleFilter: roleFilter,
-    eschoolId: user?.eschool_id, // Assuming user has eschool_id from auth
-    userRole: user?.role,
+    // userRole: user?.role,
   });
 
   const handleViewMember = (member: any) => {
@@ -115,9 +113,8 @@ const MemberManagementPage = () => {
 
   const handleDeleteMember = async () => {
     try {
-      if (!selectedMember || !user?.eschool_id) return;
+      if (!selectedMember) return;
       await removeRole({
-        eschoolId: user.eschool_id,
         userId: selectedMember.user_id,
       });
       setIsDeleteDialogOpen(false);
@@ -132,34 +129,23 @@ const MemberManagementPage = () => {
 
   const handleAssignRole = async () => {
     try {
-      if (!user?.eschool_id) return;
-
       const data = {
-        eschoolId: user.eschool_id,
         user_id: parseInt(assignRoleForm.user_id),
         role: assignRoleForm.role,
-        ...(assignRoleForm.role !== "koordinator" && assignRoleForm.student_id
-          ? {
-              member_details: {
-                student_id: assignRoleForm.student_id,
-              },
-            }
-          : {}),
       };
 
       await assignRole(data);
       setIsCreateDialogOpen(false);
-      toast.success("Role assigned successfully");
+      toast.success("Member recruited successfully");
 
       // Reset form
       setAssignRoleForm({
         user_id: "",
         role: "member",
-        student_id: "",
       });
     } catch (error: any) {
-      console.error("Error assigning role:", error);
-      toast.error("Failed to assign role", {
+      console.error("Error recruiting member:", error);
+      toast.error("Failed to recruit member", {
         description: error?.message || "An unexpected error occurred",
       });
     }
@@ -204,7 +190,7 @@ const MemberManagementPage = () => {
               <Filter className="h-4 w-4 mr-2" />
               Filter
             </Button>
-            {(user.role === "koordinator" || user.role === "staff") && (
+            {
               <Dialog
                 open={isCreateDialogOpen}
                 onOpenChange={setIsCreateDialogOpen}
@@ -212,10 +198,14 @@ const MemberManagementPage = () => {
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
-                    Assign Role
+                    Rekrut Member
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent
+                  className={
+                    assignRoleForm.user_id ? "sm:max-w-2xl" : "sm:max-w-md"
+                  }
+                >
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
@@ -223,16 +213,15 @@ const MemberManagementPage = () => {
                     }}
                   >
                     <DialogHeader>
-                      <DialogTitle>Assign Role</DialogTitle>
+                      <DialogTitle>Rekrut Member Baru</DialogTitle>
                       <DialogDescription>
-                        Assign a role to a user in this eschool
+                        Pilih user yang akan direkrut ke eschool ini
                       </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                       <div>
                         <Label className="text-sm font-medium">User</Label>
                         <Select
-                        
                           value={assignRoleForm.user_id}
                           onValueChange={(value) =>
                             setAssignRoleForm({
@@ -242,7 +231,7 @@ const MemberManagementPage = () => {
                           }
                         >
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select a user" />
+                            <SelectValue placeholder="Pilih user" />
                           </SelectTrigger>
                           <SelectContent>
                             {availableUsers?.map((user) => (
@@ -257,6 +246,86 @@ const MemberManagementPage = () => {
                         </Select>
                       </div>
 
+                      {/* User Profile Display */}
+                      {assignRoleForm.user_id && (
+                        <div className="p-4 border rounded-lg bg-muted">
+                          <h4 className="font-medium mb-2">Profil User</h4>
+                          {(() => {
+                            const selectedUser = availableUsers?.find(
+                              (user) =>
+                                user.id.toString() === assignRoleForm.user_id
+                            );
+                            return selectedUser ? (
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-muted-foreground">
+                                    Nama:
+                                  </span>
+                                  <span className="text-sm">
+                                    {selectedUser.name}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-muted-foreground">
+                                    Email:
+                                  </span>
+                                  <span className="text-sm">
+                                    {selectedUser.email}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-muted-foreground">
+                                    Base Role:
+                                  </span>
+                                  <span className="text-sm">
+                                    {selectedUser.base_role}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-muted-foreground">
+                                    QWEN Compliant:
+                                  </span>
+                                  <span className="text-sm">
+                                    {selectedUser.qwen_compliant
+                                      ? "Ya"
+                                      : "Tidak"}
+                                  </span>
+                                </div>
+
+                                {/* Current Eschool Roles */}
+                                <div className="pt-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    Roles Saat Ini:
+                                  </span>
+                                  {selectedUser.current_eschool_roles.length >
+                                  0 ? (
+                                    <div className="mt-1 space-y-1">
+                                      {selectedUser.current_eschool_roles.map(
+                                        (role, index) => (
+                                          <div
+                                            key={index}
+                                            className="flex justify-between text-sm"
+                                          >
+                                            <span>{role.eschool_name}</span>
+                                            <Badge variant="secondary">
+                                              {role.role}
+                                            </Badge>
+                                          </div>
+                                        )
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm mt-1">
+                                      Tidak ada role saat ini
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                      )}
+
                       <div>
                         <Label className="text-sm font-medium">Role</Label>
                         <Select
@@ -269,7 +338,7 @@ const MemberManagementPage = () => {
                           }
                         >
                           <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select a role" />
+                            <SelectValue placeholder="Pilih role" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="member">Member</SelectItem>
@@ -279,25 +348,6 @@ const MemberManagementPage = () => {
                           </SelectContent>
                         </Select>
                       </div>
-
-                      {(assignRoleForm.role === "member" ||
-                        assignRoleForm.role === "bendahara") && (
-                        <div>
-                          <Label className="text-sm font-medium">
-                            Student ID
-                          </Label>
-                          <Input
-                            value={assignRoleForm.student_id}
-                            onChange={(e) =>
-                              setAssignRoleForm({
-                                ...assignRoleForm,
-                                student_id: e.target.value,
-                              })
-                            }
-                            placeholder="Enter student ID"
-                          />
-                        </div>
-                      )}
                     </div>
                     <DialogFooter>
                       <Button
@@ -307,14 +357,17 @@ const MemberManagementPage = () => {
                       >
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={isAssigning}>
-                        {isAssigning ? "Assigning..." : "Assign Role"}
+                      <Button
+                        type="submit"
+                        disabled={isAssigning || !assignRoleForm.user_id}
+                      >
+                        {isAssigning ? "Merekrut..." : "Rekrut Member"}
                       </Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
               </Dialog>
-            )}
+            }
           </div>
         </div>
       </div>
@@ -402,7 +455,7 @@ const MemberManagementPage = () => {
                           <TableCell>
                             <Badge
                               variant={
-                                member.role_in_eschool === "koordinator"
+                                member.role_in_eschool === "coordinator"
                                   ? "default"
                                   : member.role_in_eschool === "bendahara"
                                   ? "secondary"
@@ -432,8 +485,8 @@ const MemberManagementPage = () => {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {(user.role === "koordinator" ||
-                                user.role === "staff") && (
+                              {(user?.role === "coordinator" ||
+                                user?.role === "supervisor") && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -557,7 +610,7 @@ const MemberManagementPage = () => {
                   <Label>Role</Label>
                   <Badge
                     variant={
-                      selectedMember.role_in_eschool === "koordinator"
+                      selectedMember.role_in_eschool === "coordinator"
                         ? "default"
                         : selectedMember.role_in_eschool === "bendahara"
                         ? "secondary"

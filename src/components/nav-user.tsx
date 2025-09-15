@@ -25,19 +25,20 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import apiClient from "@/lib/api/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, useLogout } from "@/hooks/use-auth";
 
 export function NavUser() {
-  const { user, logoutMutation } = useAuth();
+  const { user } = useAuth();
   const { isMobile } = useSidebar();
+  const { mutate: logoutMutation } = useLogout();
 
   const handleLogout = async () => {
     try {
-      await apiClient.post("/logout");
-      logoutMutation.mutate();
+      // await apiClient.post("/logout");
+      logoutMutation();
     } catch (error) {
       console.error("Logout failed:", error);
-      logoutMutation.mutate(); // Force logout even if API fails
+      logoutMutation(); // Force logout even if API fails
     }
   };
 

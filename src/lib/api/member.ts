@@ -14,7 +14,7 @@ export const memberApi = {
     members: Member[];
   }>> => {
     try {
-      const response = await apiClient.get(`/members/${eschoolId}`);
+      const response = await apiClient.get(`/members/eschool`);
       
       // Transform the response to match the expected structure
       const transformedData = {

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { multiRoleMemberApi } from '@/app/dashboard/eschool/[id]/members/services/multiRoleMemberService';
+import { memberManagementApi as multiRoleMemberApi } from '@/lib/api/member-management';
 
 // Types
 interface UserEschoolRole {
@@ -60,7 +60,6 @@ interface UseMembersParams {
   perPage?: number;
   search?: string;
   roleFilter?: string;
-  eschoolId?: number;
 }
 
 // Hook to fetch members
@@ -68,19 +67,14 @@ export const useMembers = (params?: UseMembersParams) => {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['members', params],
     queryFn: async () => {
-      if (!params?.eschoolId) {
-        throw new Error('Eschool ID is required');
-      }
-      
-      const response = await multiRoleMemberApi.getMembers(params.eschoolId, {
-        page: params.page,
-        per_page: params.perPage,
-        search: params.search,
-        role_filter: params.roleFilter
+      const response = await multiRoleMemberApi.getMembers({
+        page: params?.page,
+        per_page: params?.perPage,
+        search: params?.search,
+        role_filter: params?.roleFilter
       });
       return response;
-    },
-    enabled: !!params?.eschoolId
+    }
   });
 
   return {
@@ -94,14 +88,13 @@ export const useMembers = (params?: UseMembersParams) => {
 };
 
 // Hook to fetch available users
-export const useAvailableUsers = (eschoolId: number) => {
+export const useAvailableUsers = () => {
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['available-users', eschoolId],
+    queryKey: ['available-users'],
     queryFn: async () => {
-      const response = await multiRoleMemberApi.getAvailableUsers(eschoolId);
+      const response = await multiRoleMemberApi.getAvailableUsers();
       return response;
-    },
-    enabled: !!eschoolId
+    }
   });
 
   return {
@@ -114,7 +107,6 @@ export const useAvailableUsers = (eschoolId: number) => {
 
 // Hook to assign role
 interface AssignRoleParams {
-  eschoolId: number;
   user_id: number;
   role: string;
   member_details?: {
@@ -131,13 +123,12 @@ export const useAssignRole = () => {
 
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: async (data: AssignRoleParams) => {
-      const { eschoolId, ...rest } = data;
-      const response = await multiRoleMemberApi.assignRole(eschoolId, rest);
+      const response = await multiRoleMemberApi.assignRole(data);
       return response;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
-      queryClient.invalidateQueries({ queryKey: ['available-users', variables.eschoolId] });
+      queryClient.invalidateQueries({ queryKey: ['available-users'] });
     },
   });
 
@@ -150,7 +141,6 @@ export const useAssignRole = () => {
 
 // Hook to update role
 interface UpdateRoleParams {
-  eschoolId: number;
   userId: number;
   role: string;
 }
@@ -160,8 +150,8 @@ export const useUpdateRole = () => {
 
   const { mutateAsync, isPending, error } = useMutation({
     mutationFn: async (data: UpdateRoleParams) => {
-      const { eschoolId, userId, ...rest } = data;
-      const response = await multiRoleMemberApi.updateRole(eschoolId, userId, rest);
+      const { userId, ...rest } = data;
+      const response = await multiRoleMemberApi.updateRole(userId, rest);
       return response;
     },
     onSuccess: (_, variables) => {
@@ -181,8 +171,8 @@ export const useRemoveRole = () => {
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending, error } = useMutation({
-    mutationFn: async ({ eschoolId, userId }: { eschoolId: number; userId: number }) => {
-      const response = await multiRoleMemberApi.removeRole(eschoolId, userId);
+    mutationFn: async ({ userId }: { userId: number }) => {
+      const response = await multiRoleMemberApi.removeRole(userId);
       return response;
     },
     onSuccess: () => {
@@ -205,7 +195,7 @@ interface UseMemberManagementParams extends UseMembersParams {
 export const useMemberManagement = (params?: UseMemberManagementParams) => {
   // Use all the individual hooks
   const { members, roleSummary, pagination, isLoadingMembers, membersError, fetchMembers } = useMembers(params);
-  const { users, isLoadingUsers, usersError, fetchUsers } = useAvailableUsers(params?.eschoolId || 0);
+  const { users, isLoadingUsers, usersError, fetchUsers } = useAvailableUsers();
   const { assignRole, isAssigning, assignError } = useAssignRole();
   const { updateRole, isUpdating, updateError } = useUpdateRole();
   const { removeRole, isRemoving, removeError } = useRemoveRole();

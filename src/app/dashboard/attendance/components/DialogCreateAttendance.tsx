@@ -23,14 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Form,
   FormControl,
   FormField,
@@ -38,6 +30,12 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { AttendanceFormData, attendanceSchema } from "@/types/page/attendance";
 import { AttendanceMember } from "@/types/api";
 
@@ -121,166 +119,169 @@ const DialogCreateAttendance: React.FC<DialogCreateAttendanceProps> = ({
 
             <div>
               <h3 className="text-lg font-semibold mb-2">Members Attendance</h3>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Member</TableHead>
-                      <TableHead>Present</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead>Proof Document</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {fields.map((field, index) => (
-                      <TableRow key={field.id}>
-                        <TableCell>
-                          <FormField
-                            control={form.control}
-                            name={`members.${index}.member_id`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Select
-                                    onValueChange={field.onChange}
-                                    defaultValue={field.value}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue
-                                        placeholder={
-                                          isLoadingMembers
-                                            ? "Loading members..."
-                                            : "Select a member"
-                                        }
-                                      />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {members?.map((member) => {
-                                        const isAlreadySelected =
-                                          watchedMembers.some(
-                                            (m, i) =>
-                                              i !== index &&
-                                              m.member_id ===
-                                                String(member.user_id)
-                                          );
+              <div className="space-y-4">
+                {fields.map((field, index) => (
+                  <Card key={field.id}>
+                    <CardHeader>
+                      <CardTitle className="text-md">
+                        Member {index + 1}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex flex-col gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                          <div className="md:col-span-5">
+                            <FormField
+                              control={form.control}
+                              name={`members.${index}.member_id`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Member</FormLabel>
+                                  <FormControl>
+                                    <Select
+                                      onValueChange={field.onChange}
+                                      defaultValue={field.value}
+                                    >
+                                      <SelectTrigger className="w-full" >
+                                        <SelectValue
+                                          placeholder={
+                                            isLoadingMembers
+                                              ? "Loading members..."
+                                              : "Select a member"
+                                          }
+                                        />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {members?.map((member) => {
+                                          const isAlreadySelected =
+                                            watchedMembers.some(
+                                              (m, i) =>
+                                                i !== index &&
+                                                m.member_id ===
+                                                  String(member.user_id)
+                                            );
 
-                                        return (
-                                          <SelectItem
-                                            key={member.user_id}
-                                            value={String(member.user_id)}
-                                            disabled={isAlreadySelected}
-                                          >
-                                            {member.name}
-                                            {isAlreadySelected
-                                              ? " (Selected)"
-                                              : ""}
-                                          </SelectItem>
-                                        );
-                                      })}
-                                    </SelectContent>
-                                  </Select>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <FormField
-                            control={form.control}
-                            name={`members.${index}.is_present`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Select
-                                    onValueChange={(value) =>
-                                      field.onChange(value === "true")
-                                    }
-                                    value={field.value ? "true" : "false"}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="true">
-                                        Hadir
-                                      </SelectItem>
-                                      <SelectItem value="false">
-                                        Tidak Hadir
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <FormField
-                            control={form.control}
-                            name={`members.${index}.notes`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Textarea
-                                    placeholder="Optional notes..."
-                                    className="min-h-[60px]"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <FormField
-                            control={form.control}
-                            name={`members.${index}.proof_document`}
-                            render={({
-                              field: { onChange, value, ...field },
-                            }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <div className="flex items-center gap-2">
-                                    <Input
-                                      type="file"
-                                      accept="image/*,.pdf"
-                                      onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        onChange(file || null);
-                                      }}
-                                      disabled={
-                                        watchedMembers[index]?.is_present
+                                          return (
+                                            <SelectItem
+                                              key={member.user_id}
+                                              value={String(member.user_id)}
+                                              disabled={isAlreadySelected}
+                                            >
+                                              {member.name}
+                                              {isAlreadySelected
+                                                ? " (Selected)"
+                                                : ""}
+                                            </SelectItem>
+                                          );
+                                        })}
+                                      </SelectContent>
+                                    </Select>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <div className="md:col-span-3">
+                            <FormField
+                              control={form.control}
+                              name={`members.${index}.is_present`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Status</FormLabel>
+                                  <FormControl>
+                                    <Select
+                                      onValueChange={(value) =>
+                                        field.onChange(value === "true")
                                       }
+                                      value={field.value ? "true" : "false"}
+                                    >
+                                      <SelectTrigger className="w-full" >
+                                        <SelectValue placeholder="Status" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="true">
+                                          Hadir
+                                        </SelectItem>
+                                        <SelectItem value="false">
+                                          Tidak Hadir
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <div className="md:col-span-3">
+                            <FormField
+                              control={form.control}
+                              name={`members.${index}.notes`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Notes</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="Optional notes..."
                                       {...field}
                                     />
-                                    {!watchedMembers[index]?.is_present && (
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+
+                          <div className="md:col-span-1 flex justify-center">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => remove(index)}
+                              disabled={fields.length === 1}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {!watchedMembers[index]?.is_present && (
+                          <div className="pt-2">
+                            <FormField
+                              control={form.control}
+                              name={`members.${index}.proof_document`}
+                              render={({
+                                field: { onChange, value, ...field },
+                              }) => (
+                                <FormItem>
+                                  <FormLabel>Proof Document</FormLabel>
+                                  <FormControl>
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        type="file"
+                                        accept="image/*,.pdf"
+                                        className="w-full"
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          onChange(file || null);
+                                        }}
+                                        {...field}
+                                      />
                                       <Upload className="h-4 w-4 text-muted-foreground" />
-                                    )}
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => remove(index)}
-                            disabled={fields.length === 1}
-                          >
-                            <Trash2 className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
               <Button
                 type="button"
@@ -293,7 +294,7 @@ const DialogCreateAttendance: React.FC<DialogCreateAttendanceProps> = ({
                     proof_document: null,
                   })
                 }
-                className="mt-2"
+                className="mt-4"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Member

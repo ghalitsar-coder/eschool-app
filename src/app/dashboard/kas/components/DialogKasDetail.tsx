@@ -41,7 +41,7 @@ const DialogKasDetail = (props) => {
     setShowUpdateDialog,
     updateForm,
   } = props;
-    console.log(`🚀 ~ DialogKasDetail.tsx:44 ~ showDetailsDialog:`, showDetailsDialog)
+    console.log(`THIS IS  ~ selectedRecord:`, selectedRecord)
 
   const { treasurerEschoolId } = useAuth();
   const { data } = useKasRecords({ eschoolId: treasurerEschoolId });
@@ -266,7 +266,9 @@ const DialogKasDetail = (props) => {
             Close
           </Button>
           {selectedRecord && selectedRecord.type === "expense" && (
-            <Button onClick={() => handleOpenUpdate(selectedRecord)}>Edit</Button>
+            <Button onClick={() => handleOpenUpdate(selectedRecord)}>
+              Edit
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>

@@ -14,7 +14,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -24,12 +23,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import DateRangePicker from "./DateRangePicker";
 
 const DialogKasExport = (props) => {
   const { setShowExportDialog, showExportDialog } = props;
   const { isExporting, exportRecords } = useKasManagement();
   const { treasurerEschoolId } = useAuth();
-  
+
   const [exportFilters, setExportFilters] = useState({
     type: "all",
     date_from: "",
@@ -39,7 +39,7 @@ const DialogKasExport = (props) => {
     month: "",
     year: "",
   });
-  
+
   const handleExport = () => {
     const exportParams: any = {
       format: exportFilters.format as "csv" | "excel",
@@ -81,15 +81,30 @@ const DialogKasExport = (props) => {
 
     exportRecords(exportParams, {
       onSuccess: () => {
-        toast.success("Export completed successfully");
+        // Make sure toast is properly imported and used
+        if (typeof toast !== "undefined" && toast.success) {
+          toast.success("Export completed successfully");
+        } else {
+        }
         setShowExportDialog(false);
       },
       onError: (error: any) => {
         console.error("Export error:", error);
-        toast.error(`Export failed: ${error?.message || "Unknown error"}`);
+        // Make sure toast is properly imported and used
+        if (typeof toast !== "undefined" && toast.error) {
+          toast.error(`Export failed: ${error?.message || "Unknown error"}`);
+        } else {
+          console.error(`Export failed: ${error?.message || "Unknown error"}`);
+        }
       },
     });
   };
+
+  const isButtonDisable =
+    exportFilters.exportType == "monthly"
+      ? !exportFilters.month || !exportFilters.year
+      : !exportFilters.date_from || !exportFilters.date_to;
+
   return (
     <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
       <DialogContent className="sm:max-w-[425px]">
@@ -113,7 +128,7 @@ const DialogKasExport = (props) => {
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
@@ -140,7 +155,7 @@ const DialogKasExport = (props) => {
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select export type" />
               </SelectTrigger>
               <SelectContent>
@@ -163,7 +178,7 @@ const DialogKasExport = (props) => {
                     setExportFilters({ ...exportFilters, month: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -187,7 +202,7 @@ const DialogKasExport = (props) => {
                     setExportFilters({ ...exportFilters, year: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
                   <SelectContent>
@@ -207,37 +222,21 @@ const DialogKasExport = (props) => {
 
           {/* Custom Date Range */}
           {exportFilters.exportType === "custom" && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  From Date
-                </label>
-                <Input
-                  type="date"
-                  value={exportFilters.date_from}
-                  onChange={(e) =>
-                    setExportFilters({
-                      ...exportFilters,
-                      date_from: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  To Date
-                </label>
-                <Input
-                  type="date"
-                  value={exportFilters.date_to}
-                  onChange={(e) =>
-                    setExportFilters({
-                      ...exportFilters,
-                      date_to: e.target.value,
-                    })
-                  }
-                />
-              </div>
+            <div>
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Date Range
+              </label>
+              <DateRangePicker
+                dateFrom={exportFilters.date_from}
+                dateTo={exportFilters.date_to}
+                onDateChange={(dateFrom, dateTo) =>
+                  setExportFilters({
+                    ...exportFilters,
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                  })
+                }
+              />
             </div>
           )}
 
@@ -251,7 +250,7 @@ const DialogKasExport = (props) => {
                 setExportFilters({ ...exportFilters, format: value })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select format" />
               </SelectTrigger>
               <SelectContent>
@@ -264,7 +263,10 @@ const DialogKasExport = (props) => {
           <Button variant="outline" onClick={() => setShowExportDialog(false)}>
             Cancel
           </Button>
-          <Button onClick={handleExport} disabled={isExporting}>
+          <Button
+            onClick={handleExport}
+            disabled={isExporting || isButtonDisable}
+          >
             {isExporting ? "Exporting..." : "Export"}
           </Button>
         </DialogFooter>

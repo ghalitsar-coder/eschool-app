@@ -139,11 +139,6 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
     return options;
   }, [eschool, eligibleTreasurers]);
 
-  console.log("=== OPTIONS DEBUG ===");
-  console.log("eschool:", eschool);
-  console.log("coordinatorOptions:", coordinatorOptions);
-  console.log("treasurerOptions:", treasurerOptions);
-
   const form = useForm<EschoolFormData>({
     resolver: zodResolver(eschoolSchema),
     defaultValues: {
@@ -160,8 +155,6 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
   // Reset form when eschool changes
   React.useEffect(() => {
     if (eschool && isOpen) {
-      console.log("=== RESETTING FORM ===");
-
       const resetValues = {
         name: eschool.name || "",
         description: eschool.description || "",
@@ -176,7 +169,6 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
         is_active: eschool.is_active ?? true,
       };
 
-      console.log("Reset values:", resetValues);
       form.reset(resetValues);
     }
   }, [eschool, isOpen, form]);
@@ -199,8 +191,6 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
 
   const onSubmit = (data: EschoolFormData) => {
     if (!eschool) return;
-
-    console.log("Submitting form data:", data);
 
     const payload: any = {
       ...data,
@@ -225,7 +215,6 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
       (key) => payload[key] === undefined && delete payload[key]
     );
 
-    console.log("Final payload:", payload);
     onUpdate(eschool.id, payload);
   };
 

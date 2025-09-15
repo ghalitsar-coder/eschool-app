@@ -62,6 +62,9 @@ const DialogUpdateAttendance: React.FC<DialogUpdateAttendanceProps> = ({
     },
   });
 
+  // Ref to access the file input directly
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const watchedIsPresent = form.watch("is_present");
 
   React.useEffect(() => {
@@ -75,12 +78,29 @@ const DialogUpdateAttendance: React.FC<DialogUpdateAttendanceProps> = ({
   }, [record, form]);
 
   const handleSubmit = async (data: UpdateAttendanceFormData) => {
-    await onSubmit(data);
+    // Ensure we have the actual File object
+    let fileToSubmit = data.proof_document;
+
+    // If we have a ref to the file input, get the file directly from it
+    if (fileInputRef.current?.files?.[0]) {
+      fileToSubmit = fileInputRef.current.files[0];
+    }
+
+    // Create submission data with the actual file
+    const submitData = {
+      ...data,
+      proof_document: fileToSubmit,
+    };
+
+    await onSubmit(submitData);
     form.reset();
   };
 
   const handleClose = () => {
     form.reset();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
     onClose();
   };
 
@@ -159,7 +179,7 @@ const DialogUpdateAttendance: React.FC<DialogUpdateAttendanceProps> = ({
             <FormField
               control={form.control}
               name="proof_document"
-              render={({ field: { onChange, value, ...field } }) => (
+              render={({ field: { onChange, value, ref, ...field } }) => (
                 <FormItem>
                   <FormLabel>
                     Proof Document{" "}
@@ -168,6 +188,7 @@ const DialogUpdateAttendance: React.FC<DialogUpdateAttendanceProps> = ({
                   <FormControl>
                     <div className="flex items-center gap-2">
                       <Input
+                        ref={fileInputRef}
                         type="file"
                         accept="image/*,.pdf"
                         onChange={(e) => {

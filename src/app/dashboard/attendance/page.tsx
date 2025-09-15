@@ -26,6 +26,7 @@ import {
   DialogUpdateAttendance,
   DialogDeleteAttendance,
   DialogExportAttendance,
+  AttendanceFilterSheet,
 } from "./components";
 
 // Note: Export form is now handled internally by DialogExportAttendance
@@ -43,6 +44,7 @@ export default function AttendancePage() {
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<AttendanceRecord | null>(
     null
   );
@@ -171,18 +173,10 @@ export default function AttendancePage() {
     if (!selectedRecord) return;
 
     try {
-      const formData = new FormData();
-      formData.append("is_present", data.is_present ? "1" : "0");
-      if (data.notes) {
-        formData.append("notes", data.notes);
-      }
-      if (data.proof_document) {
-        formData.append("proof_document", data.proof_document);
-      }
-
+      // Instead of creating FormData here, pass the raw data and create FormData in the API layer
       await updateAttendance({
         id: selectedRecord.id,
-        data: formData as any,
+        data: data, // Pass raw data, not FormData
       });
       setIsUpdateDialogOpen(false);
       setSelectedRecord(null);
@@ -260,12 +254,21 @@ export default function AttendancePage() {
         {/* Filters */}
         <AttendanceFilters
           searchTerm={searchTerm}
+          dateFilter={dateFilter}
+          setIsCreateDialogOpen={setIsCreateDialogOpen}
+          setShowExportDialog={setShowExportDialog}
+          onOpenFilterSheet={() => setIsFilterSheetOpen(true)}
+        />
+
+        {/* Filter Sheet */}
+        <AttendanceFilterSheet
+          isOpen={isFilterSheetOpen}
+          onOpenChange={setIsFilterSheetOpen}
+          searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           dateFilter={dateFilter}
           setDateFilter={setDateFilter}
           setCurrentPage={setCurrentPage}
-          setIsCreateDialogOpen={setIsCreateDialogOpen}
-          setShowExportDialog={setShowExportDialog}
         />
 
         {/* Attendance Records */}

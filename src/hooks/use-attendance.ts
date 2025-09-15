@@ -1,13 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import attendanceApi from "@/lib/api/attendance";
-import {
+import { toast } from "sonner";
+import { useAuth } from "./use-auth";
+import { 
+  attendanceApi, 
+  AttendanceFormData, 
+  UpdateAttendanceFormData,
   AttendanceRecord,
   AttendanceStats,
-  AttendanceFormData,
   AttendanceAnalytics,
-  AttendanceMember,
-} from "@/types/api";
-import { useAuth } from "./use-auth";
+  AttendanceMember
+} from "@/lib/api/attendance";
+import { apiClient } from "@/lib/api/client";
+import { paymentStatisticsQueryKeys } from "./use-payment-statistics";
 
 // Types for our hooks
 interface UseAttendanceParams {
@@ -78,6 +82,7 @@ interface UseUpdateAttendanceReturn {
   isUpdating: boolean;
   updateError: Error | null;
 }
+ 
 
 interface UseDeleteAttendanceReturn {
   deleteAttendance: (id: number) => Promise<void>;
@@ -193,20 +198,18 @@ export const useAttendanceAnalytics = (
 export const useAttendanceMembers = (): UseMembersReturn => {
   const { getEschoolIdForRole } = useAuth();
 
-  const eschoolId = getEschoolIdForRole("coordinator");
-
   const { data, isLoading, error } = useQuery<AttendanceMember[], Error>({
-    queryKey: ["attendance-members", eschoolId],
+    queryKey: ["attendance-members"],
     queryFn: async () => {
-      if (!eschoolId) {
-        throw new Error("No eschool ID found");
-      }
+      // if (!eschoolId) {
+      //   throw new Error("No eschool ID found");
+      // }
       // Use the new multi-role attendance members API
-      const response = await attendanceApi.getAttendanceMembers(eschoolId);
+      const response = await attendanceApi.getAttendanceMembers();
 
       return response || [];
     },
-    enabled: !!eschoolId,
+    // enabled: !!eschoolId,
   });
 
   return {
@@ -233,6 +236,16 @@ export const useCreateAttendance = (): UseCreateAttendanceReturn => {
       queryClient.invalidateQueries({ queryKey: ["attendance"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-stats"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-analytics"] });
+
+      queryClient.invalidateQueries({
+        queryKey: paymentStatisticsQueryKeys.eschoolStatistics,
+      });
+      queryClient.invalidateQueries({
+        queryKey: paymentStatisticsQueryKeys.memberDetails,
+      });
+      queryClient.invalidateQueries({
+        queryKey: paymentStatisticsQueryKeys.memberPeriodPayments,
+      });
     },
     onError: (error: unknown) => {
       // Only log non-validation errors to avoid console spam
@@ -265,30 +278,58 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
       data,
     }: {
       id: number;
-      data: Partial<AttendanceFormData>;
+      data: Partial<AttendanceFormData> | FormData;
     }) => {
-      console.log("Update attendance - ID:", id);
-      console.log("Update attendance - Data:", data);
+      console.log("Update attendance mutationFn - ID:", id);
+      console.log("Update attendance mutationFn - Data:", data);
+      console.log("Update attendance mutationFn - Data type:", typeof data);
+      console.log("Is data FormData?", data instanceof FormData);
+      
+      // Bypass react-query serialization for FormData by calling API directly
+      if (data instanceof FormData) {
+        console.log("Bypassing react-query for FormData");
+        if (!user?.roles) {
+          throw new Error("No user roles found");
+        }
 
-      if (!user?.roles) {
-        throw new Error("No user roles found");
+        // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
+        const primaryRole = user.roles.find((role) =>
+          ["coordinator", "staff", "supervisor"].includes(role.role)
+        );
+
+        if (!primaryRole) {
+          throw new Error("No valid role found for attendance management");
+        }
+
+        // Call API directly to avoid serialization issues
+        const response = await attendanceApi.updateAttendance(
+          primaryRole.eschool_id,
+          id,
+          data
+        );
+        return response;
+      } else {
+        // For regular objects, use normal flow
+        if (!user?.roles) {
+          throw new Error("No user roles found");
+        }
+
+        // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
+        const primaryRole = user.roles.find((role) =>
+          ["coordinator", "staff", "supervisor"].includes(role.role)
+        );
+
+        if (!primaryRole) {
+          throw new Error("No valid role found for attendance management");
+        }
+
+        const response = await attendanceApi.updateAttendance(
+          primaryRole.eschool_id,
+          id,
+          data
+        );
+        return response;
       }
-
-      // Get eschool ID from user's primary role (coordinator, staff, or supervisor)
-      const primaryRole = user.roles.find((role) =>
-        ["coordinator", "staff", "supervisor"].includes(role.role)
-      );
-
-      if (!primaryRole) {
-        throw new Error("No valid role found for attendance management");
-      }
-
-      const response = await attendanceApi.updateAttendance(
-        primaryRole.eschool_id,
-        id,
-        data
-      );
-      return response;
     },
     onSuccess: () => {
       // Invalidate and refetch attendance queries
@@ -311,11 +352,54 @@ export const useUpdateAttendance = (): UseUpdateAttendanceReturn => {
     },
   });
 
-  const updateAttendance = async (params: {
+  const updateAttendance = async ({
+    id,
+    data,
+  }: {
     id: number;
-    data: Partial<AttendanceFormData>;
+    data: Partial<AttendanceFormData> | UpdateAttendanceFormData;
   }): Promise<void> => {
-    await mutateAsync(params);
+    console.log("Hook updateAttendance called with:", { id, data });
+    console.log("Data type:", typeof data);
+    console.log("Is data UpdateAttendanceFormData?", data && typeof data === 'object' && 'proof_document' in data);
+    
+    // Check if this is update attendance data (not create)
+    if (data && typeof data === 'object' && 'proof_document' in data) {
+      // Create FormData directly here to avoid serialization issues
+      const formData = new FormData();
+      if ('is_present' in data) {
+        formData.append("is_present", (data as UpdateAttendanceFormData).is_present ? "1" : "0");
+      }
+      if ('notes' in data && (data as UpdateAttendanceFormData).notes) {
+        formData.append("notes", (data as UpdateAttendanceFormData).notes || "");
+      }
+      
+      // Handle proof_document
+      const proofDoc = (data as UpdateAttendanceFormData).proof_document;
+      if (proofDoc && proofDoc instanceof File) {
+        console.log("Appending proof document to FormData in hook");
+        formData.append("proof_document", proofDoc);
+      }
+
+      console.log("FormData created in hook:", formData);
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value, typeof value);
+        if (value instanceof File) {
+          console.log("File details:", {
+            name: value.name,
+            size: value.size,
+            type: value.type,
+            lastModified: value.lastModified
+          });
+        }
+      }
+      
+      // Call the mutateAsync function directly instead of using directUpdateAttendance
+      await mutateAsync({ id, data: formData });
+    } else {
+      // For other data types, use the normal flow
+      await mutateAsync({ id, data });
+    }
   };
 
   return {

@@ -88,7 +88,6 @@ interface MemberManagementResponse {
 export const memberManagementApi = {
   // Get members for management (koordinator access)
   getMembers: async (params: {
-    eschoolId: number;
     page?: number;
     per_page?: number;
     search?: string;
@@ -108,7 +107,7 @@ export const memberManagementApi = {
       );
       
       const response = await apiClient.get(
-        `/eschool/${params.eschoolId}/members/manage`,
+        `/members/manage`,
         { params: filteredParams }
       );
       
@@ -120,9 +119,9 @@ export const memberManagementApi = {
   },
 
   // Get available users for eschool assignment
-  getAvailableUsers: async (eschoolId: number): Promise<ApiResponse<AvailableUser[]>> => {
+  getAvailableUsers: async (): Promise<ApiResponse<AvailableUser[]>> => {
     try {
-      const response = await apiClient.get(`/users/available-for-eschool/${eschoolId}`);
+      const response = await apiClient.get(`/members/available-for-eschool`);
       return response.data;
     } catch (error) {
       console.error("Error fetching available users:", error);
@@ -132,12 +131,11 @@ export const memberManagementApi = {
 
   // Assign role to user in eschool
   assignRole: async (
-    eschoolId: number,
     data: AssignRolePayload
   ): Promise<ApiResponse<EnhancedMember>> => {
     try {
       const response = await apiClient.post(
-        `/eschool/${eschoolId}/members/assign-role`,
+        `/members/assign-role`,
         data
       );
       return response.data;
@@ -149,13 +147,12 @@ export const memberManagementApi = {
 
   // Update role for user in eschool
   updateRole: async (
-    eschoolId: number,
     userId: number,
     data: Partial<AssignRolePayload>
   ): Promise<ApiResponse<EnhancedMember>> => {
     try {
       const response = await apiClient.put(
-        `/eschool/${eschoolId}/members/${userId}/update-role`,
+        `/members/${userId}/update-role`,
         data
       );
       return response.data;
@@ -167,12 +164,11 @@ export const memberManagementApi = {
 
   // Remove role from user in eschool
   removeRole: async (
-    eschoolId: number,
     userId: number
   ): Promise<ApiResponse<void>> => {
     try {
       const response = await apiClient.delete(
-        `/eschool/${eschoolId}/members/${userId}/remove-role`
+        `/members/${userId}/remove-role`
       );
       return response.data;
     } catch (error) {

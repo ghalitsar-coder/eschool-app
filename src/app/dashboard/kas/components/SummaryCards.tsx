@@ -38,7 +38,7 @@ const SummaryCards = () => {
           ) : (
             <>
               <div className="text-2xl font-bold">
-                {formatCurrency(summary.summary.total_income)}
+                {formatCurrency(summary?.summary?.total_income)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Monthly dues, donations, etc.
@@ -60,9 +60,8 @@ const SummaryCards = () => {
           ) : (
             <>
               <div className="text-2xl font-bold">
-                {console.log(`🚀 ~ SummaryCards.tsx:63 ~ summary:`, summary)}
 
-                {formatCurrency(summary.summary.total_expense)}
+                {formatCurrency(summary?.summary?.total_expense)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Equipment, supplies, etc.

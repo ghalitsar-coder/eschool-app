@@ -12,7 +12,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Eye, Edit, Trash2, Download, Plus } from "lucide-react";
+import {
+  Eye,
+  Edit,
+  Trash2,
+  Download,
+  Plus,
+  SquareArrowOutDownLeftIcon,
+} from "lucide-react";
 import { format } from "date-fns";
 import { AttendanceRecord } from "@/types/api";
 
@@ -24,7 +31,6 @@ interface AttendanceTableProps {
   onViewRecord: (record: AttendanceRecord) => void;
   onEditRecord: (record: AttendanceRecord) => void;
   onDeleteRecord: (record: AttendanceRecord) => void;
-
 }
 
 const AttendanceTable: React.FC<AttendanceTableProps> = ({
@@ -59,7 +65,6 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({
       <Card>
         <CardHeader>
           <CardTitle>Attendance Records</CardTitle>
-          
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -70,6 +75,7 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({
                   <TableHead>Member</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Recorded By</TableHead>
+                  <TableHead>Proof Document</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -115,6 +121,17 @@ const AttendanceTable: React.FC<AttendanceTableProps> = ({
                             <span className="italic text-xs text-gray-400">
                               Nama tidak ditemukan
                             </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {record.proof_document && (
+                            <a
+                              href={record.proof_document}
+                              target="_blank"
+                              className="flex items-center gap-x-2 text-blue-800"
+                            >
+                              Document <SquareArrowOutDownLeftIcon size={15} />{" "}
+                            </a>
                           )}
                         </TableCell>
                         <TableCell>
