@@ -34,10 +34,10 @@ import { useKasRecords } from "@/hooks/use-kas";
 import TransactionFilters from "./TransactionFilters";
 
 const TransactionRecords = (props) => {
-  const { 
-    setSelectedRecord, 
-    setShowDetailsDialog, 
-    isLoadingRecords, 
+  const {
+    setSelectedRecord,
+    setShowDetailsDialog,
+    isLoadingRecords,
     onOpenFilterSheet,
     // Filter states
     searchTerm,
@@ -49,7 +49,7 @@ const TransactionRecords = (props) => {
     monthFilter,
     setMonthFilter,
     yearFilter,
-    setYearFilter
+    setYearFilter,
   } = props;
   const { user, treasurerEschoolId } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
@@ -68,7 +68,10 @@ const TransactionRecords = (props) => {
     eschoolId: treasurerEschoolId,
     page: currentPage,
     per_page: itemsPerPage,
-    type: transactionTypeFilter && transactionTypeFilter !== "all" ? transactionTypeFilter : undefined,
+    type:
+      transactionTypeFilter && transactionTypeFilter !== "all"
+        ? transactionTypeFilter
+        : undefined,
     search: searchTerm || undefined,
     date_from: dateFilter?.from || undefined,
     date_to: dateFilter?.to || undefined,
@@ -79,7 +82,6 @@ const TransactionRecords = (props) => {
   const { data, isLoading, refetch } = useKasRecords(apiFilters);
 
   const handleViewDetails = (record: any) => {
-    console.log(`THIS IS  ~ record:`, record)
     setSelectedRecord(record);
     setShowDetailsDialog(true);
   };
@@ -230,13 +232,16 @@ const TransactionRecords = (props) => {
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-4">
                   <div className="text-sm text-muted-foreground">
-                    Showing {fromRecord} to {toRecord} of {totalRecords} transactions
+                    Showing {fromRecord} to {toRecord} of {totalRecords}{" "}
+                    transactions
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                      onClick={() =>
+                        handlePageChange(Math.max(1, currentPage - 1))
+                      }
                       disabled={currentPage === 1}
                     >
                       <ChevronLeft className="h-4 w-4" />

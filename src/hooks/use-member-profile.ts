@@ -7,16 +7,28 @@ import apiClient from "@/lib/api/client";
 export const memberProfileQueryKeys = {
   all: ["member-profile"] as const,
   profile: () => [...memberProfileQueryKeys.all, "profile"] as const,
-  attendance: (page?: number, perPage?: number, date?: string) => 
+  attendance: (page?: number, perPage?: number, date?: string) =>
     [...memberProfileQueryKeys.all, "attendance", page, perPage, date] as const,
-  kas: (page?: number, perPage?: number, startDate?: string, endDate?: string) => 
-    [...memberProfileQueryKeys.all, "kas", page, perPage, startDate, endDate] as const,
+  kas: (
+    page?: number,
+    perPage?: number,
+    startDate?: string,
+    endDate?: string
+  ) =>
+    [
+      ...memberProfileQueryKeys.all,
+      "kas",
+      page,
+      perPage,
+      startDate,
+      endDate,
+    ] as const,
 };
 
 // Hook untuk mengambil data profile member
 export const useMemberProfile = () => {
   const { user } = useAuth();
-  
+
   return useQuery({
     queryKey: memberProfileQueryKeys.profile(),
     queryFn: async () => {
@@ -40,7 +52,10 @@ export const useMemberAttendance = (params?: {
   return useQuery({
     queryKey: memberProfileQueryKeys.attendance(page, perPage, date),
     queryFn: async () => {
-      const queryParams: { page: number; per_page: number; date?: string } = { page, per_page: perPage };
+      const queryParams: { page: number; per_page: number; date?: string } = {
+        page,
+        per_page: perPage,
+      };
       if (date) {
         queryParams.date = date;
       }
@@ -49,7 +64,7 @@ export const useMemberAttendance = (params?: {
       });
       return response.data;
     },
-    enabled: !!user && ['siswa', 'koordinator', 'staff'].includes(user.role),
+    enabled: !!user && ["siswa", "koordinator", "staff"].includes(user.role),
   });
 };
 
@@ -67,7 +82,12 @@ export const useMemberKas = (params?: {
   return useQuery({
     queryKey: memberProfileQueryKeys.kas(page, perPage, startDate, endDate),
     queryFn: async () => {
-      const queryParams: { page: number; per_page: number; start_date?: string; end_date?: string } = { page, per_page: perPage };
+      const queryParams: {
+        page: number;
+        per_page: number;
+        start_date?: string;
+        end_date?: string;
+      } = { page, per_page: perPage };
       if (startDate) {
         queryParams.start_date = startDate;
       }
@@ -79,7 +99,7 @@ export const useMemberKas = (params?: {
       });
       return response.data;
     },
-    enabled: !!user && ['siswa', 'koordinator', 'staff'].includes(user.role),
+    enabled: !!user && ["siswa", "koordinator", "staff"].includes(user.role),
   });
 };
 
@@ -91,28 +111,28 @@ export const useExportAttendance = () => {
       if (eschoolId) {
         params.eschool_id = eschoolId;
       }
-      
+
       const response = await apiClient.get("/member/attendance/export", {
         params,
-        responseType: 'blob'
+        responseType: "blob",
       });
-      
+
       // Create blob link to download
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', 'attendance-export.csv');
+      link.setAttribute("download", "attendance-export.csv");
       document.body.appendChild(link);
       link.click();
       link.remove();
-      
+
       return { success: true };
     } catch (error: any) {
-      console.error('Export failed:', error);
+      console.error("Export failed:", error);
       return { success: false, error };
     }
   };
-  
+
   return { exportAttendance };
 };
 
@@ -124,45 +144,74 @@ export const useExportKas = () => {
       if (eschoolId) {
         params.eschool_id = eschoolId;
       }
-      
+
       const response = await apiClient.get("/member/kas/export", {
         params,
-        responseType: 'blob'
+        responseType: "blob",
       });
-      
+
       // Create blob link to download
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', 'kas-export.csv');
+      link.setAttribute("download", "kas-export.csv");
       document.body.appendChild(link);
       link.click();
       link.remove();
-      
+
       return { success: true };
     } catch (error: any) {
-      console.error('Export failed:', error);
+      console.error("Export failed:", error);
       return { success: false, error };
     }
   };
-  
+
   return { exportKas };
 };
 
 // Main hook yang menggabungkan semua data profile member
 export const useMemberProfileData = () => {
   const profile = useMemberProfile();
+  console.log(`THIS IS  ~ profile:`, profile.data);
+    const transformProfileData = {
+      ...profile.data,
+      eschools: profile?.data?.eschools?.map((eschool) => {
+        let days = [];
   
+        try {
+          // Coba parse sebagai JSON
+          const parsed = JSON.parse(eschool.schedule_days);
+          if (Array.isArray(parsed)) {
+            days = parsed; // sukses, gunakan hasil parse
+          } else {
+            // bukan array, fallback ke split
+            days = eschool.schedule_days.split(",").map(day => day.trim());
+          }
+        } catch (e) {
+          // gagal parse → bukan JSON, anggap string biasa dipisah koma
+          days = eschool.schedule_days.split(",").map(day => day.trim());
+        }
+  
+        return {
+          ...eschool,
+          schedule_days: days,
+        };
+      }) || [], // fallback ke array kosong jika undefined
+    };
+  
+    // Jangan lupa assign atau return transformProfileData
+    // karena sekarang hanya didefinisikan, tapi tidak dipakai/dikembalikan
+
   return {
     // Data
-    profileData: profile.data,
-    
+    profileData: transformProfileData,
+
     // Loading states
     isLoadingProfile: profile.isLoading,
-    
+
     // Error states
     profileError: profile.error,
-    
+
     // Refetch functions
     refetchProfile: profile.refetch,
   };

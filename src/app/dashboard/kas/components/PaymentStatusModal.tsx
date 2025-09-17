@@ -31,6 +31,7 @@ import {
   PaymentPeriod,
   PeriodPayment,
 } from "@/hooks/use-payment-statistics";
+import { format } from "date-fns";
 
 interface PaymentStatusModalProps {
   member: MemberPaymentStatistics | null;
@@ -114,12 +115,14 @@ const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
   if (!member) return null;
 
   return (
-    <Dialog open={isOpen}  onOpenChange={onClose}  >
-      <DialogContent   className="max-w-5xl w-[90vw]  "
-        style={{ 
-          width: '90vw', 
-          maxWidth: '64rem',
-        }}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent
+        className="max-w-5xl w-[90vw]  "
+        style={{
+          width: "90vw",
+          maxWidth: "64rem",
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
@@ -182,7 +185,7 @@ const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
               </Card>
 
               {/* Payment Status Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3   gap-4 w-full bg-blue-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3   gap-4 w-full  ">
                 {memberDetails?.data?.payment_summary?.periods?.map(
                   (period: PaymentPeriod) => (
                     <Card
@@ -340,7 +343,8 @@ const PaymentStatusModal: React.FC<PaymentStatusModalProps> = ({
                                   </p>
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <Clock className="h-3 w-3" />
-                                    {payment.paid_date || "Pending"}
+                                    {format(payment.created_at, "dd, MMMM yyyy") ||
+                                      "Pending"}
                                   </div>
                                 </div>
                               </div>

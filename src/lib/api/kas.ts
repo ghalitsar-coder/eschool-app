@@ -126,6 +126,8 @@ export const kasApi = {
     year?: number;
     page?: number;
     eschoolId:number;
+    date_from?: string;
+    date_to?: string;
   }): Promise<any> => {
     
     // alert("helo")

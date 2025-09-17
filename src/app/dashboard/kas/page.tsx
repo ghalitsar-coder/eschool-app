@@ -17,6 +17,7 @@ import DialogUpdateKas from "./components/DialogUpdateKas";
 import SummaryCards from "./components/SummaryCards";
 import KasFilterSheet from "./components/KasFilterSheet";
 import PaymentStatisticsTable from "./components/PaymentStatisticsTable";
+import { useAuth } from "@/hooks/use-auth";
 
 const KasManagement: React.FC = () => {
   const {
@@ -27,6 +28,7 @@ const KasManagement: React.FC = () => {
     addExpenseError,
     exportError,
   } = useKasManagement();
+  const { treasurerEschoolId } = useAuth();
   const [selectedRecord, setSelectedRecord] = useState<Record<
     string,
     unknown
@@ -74,18 +76,18 @@ const KasManagement: React.FC = () => {
       {/* Summary Cards */}
       <SummaryCards />
 
-     
-
       {/* Error Alert */}
       {hasErrors && <ErrorKasAlert />}
 
       {/* Action Buttons */}
-      <div className="px-4 lg:px-6">
-        <div className="flex items-center gap-4">
-          <DialogKasIncome />
-          <DialogKasExpense />
+      {treasurerEschoolId && (
+        <div className="px-4 lg:px-6">
+          <div className="flex items-center gap-4">
+            <DialogKasIncome />
+            <DialogKasExpense />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Transactions Table */}
       <TransactionRecords
@@ -106,8 +108,8 @@ const KasManagement: React.FC = () => {
         setYearFilter={setYearFilter}
       />
 
-       {/* Payment Statistics */}
-       <PaymentStatisticsTable />
+      {/* Payment Statistics */}
+      <PaymentStatisticsTable />
 
       {/* Filter Sheet */}
       <KasFilterSheet

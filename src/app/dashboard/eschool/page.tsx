@@ -18,16 +18,19 @@ import { useAuth } from "@/hooks/use-auth";
 import { Eschool } from "@/types/api";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { 
-  LayoutDashboard, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  BarChart3,
   // Wallet icon commented out as it's only used for financial tab
-  // Wallet, 
+  // Wallet,
   UserCheck,
-  UserPlus
+  UserPlus,
 } from "lucide-react";
-import { createUser } from "@/lib/api/user"; // Import the user service
+import { useCreateUser } from "@/hooks/use-user"; // Import the user hook
 import { toast } from "sonner"; // Assuming you're using sonner for toast notifications
+import FinancialAnalytics from "./components/FinancialAnalytics";
+import { useQueryClient } from "@tanstack/react-query";
+import { memberProfileQueryKeys } from "@/hooks/use-member-profile";
 
 const EschoolManagement: React.FC = () => {
   const { user } = useAuth();
@@ -46,6 +49,8 @@ const EschoolManagement: React.FC = () => {
     isUpdatingEschool,
     isDeletingEschool,
   } = useEschoolManagement();
+  
+  const createUserMutation = useCreateUser(); // Add the user creation hook
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
@@ -55,7 +60,8 @@ const EschoolManagement: React.FC = () => {
   const [selectedEschool, setSelectedEschool] = useState<Eschool | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard"); // dashboard, attendance
-  const [isCreatingUser, setIsCreatingUser] = useState(false); // State for user creation loading
+  const queryClient = useQueryClient()
+  // Remove the isCreatingUser state as we'll use the hook's state
 
   const handleCreateEschool = (data: any) => {
     createEschool(data, {
@@ -67,12 +73,18 @@ const EschoolManagement: React.FC = () => {
   };
 
   const handleUpdateEschool = (id: number, data: any) => {
-    updateEschool({ id, data }, {
-      onSuccess: () => {
-        setShowUpdateDialog(false);
-        refetchEschools();
-      },
-    });
+    updateEschool(
+      { id, data },
+      {
+        onSuccess: () => {
+          setShowUpdateDialog(false);
+          refetchEschools();
+          queryClient.invalidateQueries({
+            queryKey: memberProfileQueryKeys.profile(),
+          });
+        },
+      }
+    );
   };
 
   const handleDeleteEschool = () => {
@@ -101,12 +113,16 @@ const EschoolManagement: React.FC = () => {
   };
 
   // Error handling
-  const hasErrors = eschoolsError || createEschoolError || updateEschoolError || deleteEschoolError;
+  const hasErrors =
+    eschoolsError ||
+    createEschoolError ||
+    updateEschoolError ||
+    deleteEschoolError;
 
   // Tentukan tab yang tersedia berdasarkan role (financial tab commented out)
   const availableTabs = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "attendance", label: "Attendance", icon: UserCheck }
+    { id: "attendance", label: "Attendance", icon: UserCheck },
     // Financial tab commented out as per requirements
     // { id: "financial", label: "Financial", icon: Wallet }
   ];
@@ -117,19 +133,19 @@ const EschoolManagement: React.FC = () => {
   // }
 
   // Jika tab yang aktif tidak tersedia, ubah ke tab pertama
-  const validActiveTab = availableTabs.some(tab => tab.id === activeTab) 
-    ? activeTab 
+  const validActiveTab = availableTabs.some((tab) => tab.id === activeTab)
+    ? activeTab
     : availableTabs[0].id;
 
   return (
     <div className="flex flex-col gap-6 py-6 px-5">
-      <HeaderEschool 
+      <HeaderEschool
         setShowCreateDialog={setShowCreateDialog}
         setShowCreateUserDialog={setShowCreateUserDialog}
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
       />
-      
+
       {/* Tab Navigation */}
       <div className="flex space-x-2 border-b">
         {availableTabs.map((tab) => (
@@ -172,15 +188,13 @@ const EschoolManagement: React.FC = () => {
       )}
 
       {/* Financial tab content commented out as per requirements */}
-      {/* 
-      {validActiveTab === "financial" && user?.role !== "staff" && (
+      
+      {/* {validActiveTab === "financial" &&   (
         <FinancialAnalytics />
-      )}
-      */}
+      )} */}
+     
 
-      {validActiveTab === "attendance" && (
-        <AttendanceAnalytics />
-      )}
+      {validActiveTab === "attendance" && <AttendanceAnalytics />}
 
       <DialogCreateEschool
         isOpen={showCreateDialog}
@@ -192,21 +206,6 @@ const EschoolManagement: React.FC = () => {
       <DialogCreateUser
         isOpen={showCreateUserDialog}
         onOpenChange={setShowCreateUserDialog}
-        onCreate={async (data) => {
-          setIsCreatingUser(true);
-          try {
-            await createUser(data);
-            toast.success("User created successfully");
-            setShowCreateUserDialog(false);
-            // Optionally refetch users if you have a user list
-          } catch (error: any) {
-            console.error("Error creating user:", error);
-            toast.error(error?.response?.data?.message || "Failed to create user");
-          } finally {
-            setIsCreatingUser(false);
-          }
-        }}
-        isCreating={isCreatingUser}
       />
 
       <DialogUpdateEschool

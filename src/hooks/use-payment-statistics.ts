@@ -99,8 +99,10 @@ export interface MemberPeriodPayments {
  * Hook to get payment statistics for all members in an eschool
  */
 export const useEschoolPaymentStatistics = (eschoolId?: number) => {
-  const { treasurerEschoolId } = useAuth();
-  const finalEschoolId = eschoolId || treasurerEschoolId;
+  const { treasurerEschoolId, getEschoolIdForRole } = useAuth();
+  const coordinatorId = getEschoolIdForRole("coordinator");
+  const finalEschoolId =  treasurerEschoolId || coordinatorId;
+;
 
   return useQuery({
     queryKey: [...paymentStatisticsQueryKeys.eschoolStatistics, finalEschoolId],

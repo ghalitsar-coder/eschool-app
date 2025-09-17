@@ -230,10 +230,10 @@ const StudentDashboard: React.FC = () => {
       name: "Bendahara",
       value: profileData.overall_summary.roles.bendahara || 0,
     },
-    {
-      name: "Koordinator",
-      value: profileData.overall_summary.roles.koordinator || 0,
-    },
+    // {
+    //   name: "Koordinator",
+    //   value: profileData.overall_summary.roles.koordinator || 0,
+    // },
     { name: "Member", value: profileData.overall_summary.roles.member || 0 },
   ];
 
@@ -390,7 +390,7 @@ const StudentDashboard: React.FC = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <PieChart className="h-5 w-5" />
-                  Role Distribution
+                  Role Distribution 55
                 </CardTitle>
                 <CardDescription>Your roles across eschools</CardDescription>
               </CardHeader>

@@ -328,10 +328,14 @@ const ProfilePage: React.FC = () => {
 
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Schedule:</span>
-                        <span className="font-medium">
-                          {eschool.schedule_days}
-                        </span>
+                        <h2 className="text-muted-foreground">Schedule:</h2>
+                        <div className="flex gap-x-1">
+                          {eschool.schedule_days.map((item: string) => (
+                            <Badge key={item.trim()} className="font-medium">
+                              {item}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">

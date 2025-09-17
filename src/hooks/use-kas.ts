@@ -29,8 +29,9 @@ export const useKasRecords = (params?: {
   per_page?: number;
   eschoolId?: number;
 }) => {
-  const { treasurerEschoolId } = useAuth();
-  const finalEschoolId = params?.eschoolId || treasurerEschoolId;
+  const { treasurerEschoolId, getEschoolIdForRole } = useAuth();
+  const coordinatorId = getEschoolIdForRole("coordinator");
+  const finalEschoolId = params?.eschoolId || treasurerEschoolId || coordinatorId;
 
   return useQuery({
     queryKey: [
@@ -55,7 +56,7 @@ export const useKasSummary = () => {
       const response = await kasApi.getSummary();
       return response;
     },
-    enabled: true,
+    // enabled: true,
   });
 };
 

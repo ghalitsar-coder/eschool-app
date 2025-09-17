@@ -118,7 +118,7 @@ const DialogExportAttendance: React.FC<DialogExportAttendanceProps> = ({
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select export type" />
               </SelectTrigger>
               <SelectContent>
@@ -141,7 +141,7 @@ const DialogExportAttendance: React.FC<DialogExportAttendanceProps> = ({
                     setExportFilters({ ...exportFilters, month: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -165,7 +165,7 @@ const DialogExportAttendance: React.FC<DialogExportAttendanceProps> = ({
                     setExportFilters({ ...exportFilters, year: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
                   <SelectContent>
@@ -229,7 +229,7 @@ const DialogExportAttendance: React.FC<DialogExportAttendanceProps> = ({
                 setExportFilters({ ...exportFilters, format: value })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select format" />
               </SelectTrigger>
               <SelectContent>

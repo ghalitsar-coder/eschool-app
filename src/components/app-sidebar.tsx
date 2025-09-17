@@ -161,6 +161,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           url: "/dashboard/members",
           icon: IconFolder,
         },
+        {
+          title: "Kas",
+          url: "/dashboard/kas",
+          icon: IconListDetails,
+        },
       ];
     }
 

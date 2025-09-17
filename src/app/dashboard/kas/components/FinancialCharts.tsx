@@ -102,6 +102,7 @@ const FinancialCharts: React.FC<FinancialChartsProps> = ({
 
     // Process real records
     if (Array.isArray(records)) {
+      // Process expense records by transaction date (as before)
       records.forEach(record => {
         if (!record || !record.date) return;
         
@@ -109,13 +110,34 @@ const FinancialCharts: React.FC<FinancialChartsProps> = ({
         const monthIndex = date.getMonth(); // 0-11
         
         if (monthIndex >= 0 && monthIndex < 12) {
-          if (record.type === 'income') {
-            data[monthIndex].income += (record.amount || 0);
-          } else if (record.type === 'expense') {
+          if (record.type === 'expense') {
             data[monthIndex].expense += (record.amount || 0);
+            data[monthIndex].balance = data[monthIndex].income - data[monthIndex].expense;
           }
-          data[monthIndex].balance = data[monthIndex].income - data[monthIndex].expense;
         }
+      });
+      
+      // Process income records by payment period dates (new approach)
+      records.forEach(record => {
+        if (!record || record.type !== 'income' || !Array.isArray(record.payments)) return;
+        
+        // For income, aggregate by payment period rather than transaction date
+        record.payments.forEach(payment => {
+          if (!payment) return;
+          
+          // Use payment period (month/year) instead of transaction date
+          const paymentMonth = parseInt(payment.month) - 1; // Convert to 0-11 index
+          const paymentYear = parseInt(payment.year);
+          
+          // Get current year for reference (to focus on current year's data)
+          const currentYear = new Date().getFullYear();
+          
+          // Only process payments for the current year
+          if (paymentYear === currentYear && paymentMonth >= 0 && paymentMonth < 12) {
+            data[paymentMonth].income += (payment.amount || 0);
+            data[paymentMonth].balance = data[paymentMonth].income - data[paymentMonth].expense;
+          }
+        });
       });
     }
 

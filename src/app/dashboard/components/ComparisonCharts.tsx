@@ -174,7 +174,7 @@ const ComparisonCharts: React.FC<ComparisonChartsProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <PieChartIcon className="h-5 w-5" />
-            Role Distribution
+            Role Distribution 33 
           </CardTitle>
           <CardDescription>
             Distribution of your roles across eschools

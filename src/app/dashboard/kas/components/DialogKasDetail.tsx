@@ -41,7 +41,6 @@ const DialogKasDetail = (props) => {
     setShowUpdateDialog,
     updateForm,
   } = props;
-    console.log(`THIS IS  ~ selectedRecord:`, selectedRecord)
 
   const { treasurerEschoolId } = useAuth();
   const { data } = useKasRecords({ eschoolId: treasurerEschoolId });

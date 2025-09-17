@@ -33,15 +33,6 @@ const HeaderEschool: React.FC<HeaderEschoolProps> = ({
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search eschools..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-full sm:w-64"
-            />
-          </div>
           <div className="flex gap-2">
             {hasRole("supervisor") && (
               <Button
@@ -61,9 +52,6 @@ const HeaderEschool: React.FC<HeaderEschoolProps> = ({
                 Create User
               </Button>
             )}
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </div>

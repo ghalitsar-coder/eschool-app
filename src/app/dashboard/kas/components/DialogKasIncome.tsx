@@ -108,6 +108,11 @@ const DialogKasIncome = (props) => {
             // Show the specific duplicate payment error message
             toast.error(error?.response?.data?.message || "Duplicate payment detected");
           } 
+          // Handle excessive payment errors specifically
+          else if (backendErrors.excessive_payments) {
+            // Show the specific excessive payment error message
+            toast.error(error?.response?.data?.message || "Excessive payment detected");
+          }
           // Handle other field validation errors
           else {
             // Display errors for each payment field

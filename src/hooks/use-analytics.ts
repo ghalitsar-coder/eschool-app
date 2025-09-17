@@ -7,9 +7,9 @@ import apiClient from "@/lib/api/client";
 export const analyticsQueryKeys = {
   all: ["analytics"] as const,
   eschools: () => [...analyticsQueryKeys.all, "eschools"] as const,
-  // financial query key commented out as it's only used for financial components
-  // financial: () => [...analyticsQueryKeys.all, "financial"] as const,
+  financial: () => [...analyticsQueryKeys.all, "financial"] as const,
   attendance: () => [...analyticsQueryKeys.all, "attendance"] as const,
+  attendanceDetails: () => [...analyticsQueryKeys.all, "attendanceDetails"] as const,
 };
 
 // Hook untuk mengambil data analytics eschool
@@ -26,8 +26,7 @@ export const useEschoolAnalytics = () => {
   });
 };
 
-// Hook untuk mengambil data financial analytics (commented out as per requirements)
-/*
+// Hook untuk mengambil data financial analytics
 export const useFinancialAnalytics = () => {
   const { user } = useAuth();
   
@@ -55,7 +54,6 @@ export const useFinancialAnalytics = () => {
     enabled: !!user,
   });
 };
-*/
 
 // Hook untuk mengambil data attendance analytics
 export const useAttendanceAnalytics = () => {
@@ -71,36 +69,45 @@ export const useAttendanceAnalytics = () => {
   });
 };
 
+// Hook untuk mengambil data attendance analytics detail
+export const useAttendanceAnalyticsDetails = () => {
+  const { user } = useAuth();
+  
+  return useQuery({
+    queryKey: analyticsQueryKeys.attendanceDetails(),
+    queryFn: async () => {
+      const response = await apiClient.get("/dashboard/attendance/analytics?period=month");
+      return response.data;
+    },
+    enabled: !!user,
+  });
+};
+
 // Main hook yang menggabungkan semua analytics
 export const useAnalytics = () => {
   const eschoolAnalytics = useEschoolAnalytics();
-  // financialAnalytics commented out as it's only used for financial components
-  // const financialAnalytics = useFinancialAnalytics();
+  const financialAnalytics = useFinancialAnalytics();
   const attendanceAnalytics = useAttendanceAnalytics();
   
   return {
     // Data
     eschoolData: eschoolAnalytics.data,
-    // financialData commented out as it's only used for financial components
-    // financialData: financialAnalytics.data,
+    financialData: financialAnalytics.data,
     attendanceData: attendanceAnalytics.data,
     
     // Loading states
     isLoadingEschoolData: eschoolAnalytics.isLoading,
-    // isLoadingFinancialData commented out as it's only used for financial components
-    // isLoadingFinancialData: financialAnalytics.isLoading,
+    isLoadingFinancialData: financialAnalytics.isLoading,
     isLoadingAttendanceData: attendanceAnalytics.isLoading,
     
     // Error states
     eschoolError: eschoolAnalytics.error,
-    // financialError commented out as it's only used for financial components
-    // financialError: financialAnalytics.error,
+    financialError: financialAnalytics.error,
     attendanceError: attendanceAnalytics.error,
     
     // Refetch functions
     refetchEschoolData: eschoolAnalytics.refetch,
-    // refetchFinancialData commented out as it's only used for financial components
-    // refetchFinancialData: financialAnalytics.refetch,
+    refetchFinancialData: financialAnalytics.refetch,
     refetchAttendanceData: attendanceAnalytics.refetch,
   };
 };

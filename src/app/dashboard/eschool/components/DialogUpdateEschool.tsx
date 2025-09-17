@@ -286,14 +286,7 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
                 <p className="text-sm text-muted-foreground">
                   Select a coordinator for this eschool from eligible teachers.
                 </p>
-                <div className="text-xs bg-blue-50 p-2 rounded">
-                  Current: {form.watch("coordinator_id")} | Display:{" "}
-                  {getCoordinatorDisplayName(form.watch("coordinator_id"))} |
-                  Options: {coordinatorOptions.length}
-                  {eschool?.coordinator && (
-                    <div>Eschool Coordinator: {eschool.coordinator.name}</div>
-                  )}
-                </div>
+                 
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
@@ -309,19 +302,16 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
                           onValueChange={field.onChange}
                           value={field.value || "__none__"}
                         >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={
-                                  displayName || "Choose a coordinator"
-                                }
-                              />
-                            </SelectTrigger>
-                          </FormControl>
+                          <SelectTrigger className="w-[280px]">
+                            <SelectValue
+                              placeholder="No coordinator assigned"
+                              className="!text-blue-500"
+                            />
+                          </SelectTrigger>
                           <SelectContent>
-                            {/* <SelectItem value="__none__">
+                            <SelectItem value="__none__">
                               No coordinator assigned
-                            </SelectItem> */}
+                            </SelectItem>
                             {coordinatorOptions.map((coordinator) => (
                               <SelectItem
                                 key={coordinator.user_id}
@@ -368,14 +358,7 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
                 <p className="text-sm text-muted-foreground">
                   Select a treasurer for this eschool.
                 </p>
-                <div className="text-xs bg-green-50 p-2 rounded">
-                  Current: {form.watch("treasurer_id")} | Display:{" "}
-                  {getTreasurerDisplayName(form.watch("treasurer_id"))} |
-                  Options: {treasurerOptions.length}
-                  {eschool?.treasurer && (
-                    <div>Eschool Treasurer: {eschool.treasurer.name}</div>
-                  )}
-                </div>
+               
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
@@ -392,7 +375,7 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
                           value={field.value || "__none__"}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className="w-[280px]">
                               <SelectValue
                                 placeholder={
                                   displayName || "Choose a treasurer"
@@ -401,9 +384,9 @@ const DialogUpdateEschool: React.FC<DialogUpdateEschoolProps> = ({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {/* <SelectItem value="__none__">
+                            <SelectItem value="__none__">
                               No treasurer assigned
-                            </SelectItem> */}
+                            </SelectItem>
                             {treasurerOptions.map((treasurer) => (
                               <SelectItem
                                 key={treasurer.user_id}

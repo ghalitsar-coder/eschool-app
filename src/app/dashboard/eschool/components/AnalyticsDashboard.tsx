@@ -12,13 +12,14 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Building, 
-  // CreditCard icon commented out as it's only used for financial components
-  // CreditCard, 
+  CreditCard,
   Users, 
   TrendingUp, 
   TrendingDown,
   Calendar,
-  UserCheck
+  UserCheck,
+  UserX,
+  Clock
 } from "lucide-react";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { useAuth } from "@/hooks/use-auth";
@@ -27,17 +28,14 @@ const AnalyticsDashboard = () => {
   const { user } = useAuth();
   const {
     eschoolData,
-    // financialData commented out as it's only used for financial components
-    // financialData,
+    financialData,
     attendanceData,
     isLoadingEschoolData,
-    // isLoadingFinancialData commented out as it's only used for financial components
-    // isLoadingFinancialData,
+    isLoadingFinancialData,
     isLoadingAttendanceData,
   } = useAnalytics();
 
-  // Helper function untuk format currency (commented out as it's only used for financial components)
-  /*
+  // Helper function untuk format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -46,13 +44,24 @@ const AnalyticsDashboard = () => {
       maximumFractionDigits: 0,
     }).format(amount);
   };
-  */
 
   // Loading state skeletons
-  // isLoadingFinancialData removed from condition as it's only used for financial components
-  if (isLoadingEschoolData || isLoadingAttendanceData) {
+  if (isLoadingEschoolData || isLoadingFinancialData || isLoadingAttendanceData) {
     return (
       <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-32" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-2 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
@@ -106,29 +115,27 @@ const AnalyticsDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Financial Balance - Hanya untuk non-staff (commented out as per requirements) */}
-        {/* 
-        {user?.role !== "staff" && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${
-                (financialData?.netBalance || 0) >= 0 ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {formatCurrency(financialData?.netBalance || 0)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Income: {formatCurrency(financialData?.totalIncome || 0)}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-        */}
+        {/* Financial Balance - Hanya untuk non-staff */}
+      {/* {user?.role !== "staff" && ( */}
+        {/* <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${
+              (financialData?.netBalance || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+            }`}>
+              {formatCurrency(financialData?.netBalance || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Income: {formatCurrency(financialData?.totalIncome || 0)}
+            </p>
+          </CardContent>
+        </Card> */}
+      {/* // )} */}
 
-        {/* Active Percentage */}
+      {/* Active Percentage */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Rate</CardTitle>
@@ -153,10 +160,60 @@ const AnalyticsDashboard = () => {
         </Card>
       </div>
 
-      {/* Financial Summary - Hanya untuk non-staff (commented out as per requirements) */}
-      {/* 
-      {user?.role !== "staff" && (
+      {/* Attendance Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Records */}
         <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{attendanceData?.totalRecords || 0}</div>
+            <p className="text-xs text-muted-foreground">Attendance records</p>
+          </CardContent>
+        </Card>
+
+        {/* Total Present */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Present</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{attendanceData?.totalPresent || 0}</div>
+            <p className="text-xs text-muted-foreground">Members attended</p>
+          </CardContent>
+        </Card>
+
+        {/* Total Absent */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Absent</CardTitle>
+            <UserX className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{attendanceData?.totalAbsent || 0}</div>
+            <p className="text-xs text-muted-foreground">Members not attended</p>
+          </CardContent>
+        </Card>
+
+        {/* Total Late */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Late</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{attendanceData?.totalLate || 0}</div>
+            <p className="text-xs text-muted-foreground">Late arrivals</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Financial Summary - Hanya untuk non-staff */}
+      {/* {user?.role !== "staff" && ( */}
+        {/* <Card>
           <CardHeader>
             <CardTitle>Financial Overview</CardTitle>
             <CardDescription>
@@ -187,13 +244,11 @@ const AnalyticsDashboard = () => {
               </div>
             </div>
           </CardContent>
-        </Card>
-      )}
-      */}
+        </Card> */}
+      {/* )} */}
 
-      {/* Monthly Kas Distribution - Hanya untuk non-staff (commented out as per requirements) */}
-      {/* 
-      {user?.role !== "staff" && eschoolData?.monthlyKasDistribution && eschoolData.monthlyKasDistribution.length > 0 && (
+      {/* Monthly Kas Distribution - Hanya untuk non-staff */}
+      {/* { eschoolData?.monthlyKasDistribution && eschoolData.monthlyKasDistribution.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Monthly Kas Distribution</CardTitle>
@@ -220,8 +275,7 @@ const AnalyticsDashboard = () => {
             </div>
           </CardContent>
         </Card>
-      )}
-      */}
+      )} */}
     </div>
   );
 };
