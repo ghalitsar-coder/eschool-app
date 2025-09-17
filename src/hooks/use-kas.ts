@@ -1,5 +1,6 @@
 // useKasManagement.ts - Kas management with TanStack Query based on Laravel backend
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { KasSummary } from "../types/api";
 import { useAuth } from "./use-auth";
 import {
@@ -9,7 +10,9 @@ import {
   MembersResponse,
   KasRecordsResponse,
 } from "@/lib/api/kas";
-import { memberApi } from "@/lib/api/members";
+import { MembersApiResponse } from "@/lib/api/members";
+import { IncomeFormData } from "@/types/page/kas";
+import memberApi from "@/lib/api/member";
 
 // Query keys for better cache management
 export const kasQueryKeys = {
@@ -17,89 +20,59 @@ export const kasQueryKeys = {
   summary: ["kas", "summary"] as const,
   members: ["kas", "members"] as const,
 };
- 
+
 export const useKasRecords = (params?: {
   type?: "income" | "expense";
   month?: number;
   year?: number;
   page?: number;
+  per_page?: number;
+  eschoolId?: number;
 }) => {
-  const { isBendahara, isKoordinator, isStaff, user, isAuthenticated } =
-    useAuth();
-  const canAccessKas = isBendahara || isKoordinator || isStaff;
-
+  const { treasurerEschoolId, getEschoolIdForRole } = useAuth();
+  const coordinatorId = getEschoolIdForRole("coordinator");
+  const finalEschoolId = params?.eschoolId || treasurerEschoolId || coordinatorId;
 
   return useQuery({
-    queryKey: [...kasQueryKeys.records, params],
+    queryKey: [
+      ...kasQueryKeys.records,
+      { ...params, eschoolId: finalEschoolId },
+    ],
     queryFn: async () => {
-      const response = await kasApi.getKasRecords(params);
+      const response = await kasApi.getKasRecords({
+        ...params,
+        eschoolId: finalEschoolId,
+      });
       return response;
     },
-    enabled: isAuthenticated && canAccessKas,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchOnWindowFocus: true,
-    retry: (failureCount, error: any) => {
-      if (error?.response?.status === 401 || error?.response?.status === 403) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+    enabled: !!finalEschoolId,
   });
 };
 
 export const useKasSummary = () => {
-  const { isBendahara, isKoordinator, isStaff, user, isAuthenticated } =
-    useAuth();
-  const canAccessKas = isBendahara || isKoordinator || isStaff;
-
-  // Debug logging
-  // 
-  // 
-  // 
-  // 
-
   return useQuery({
     queryKey: kasQueryKeys.summary,
     queryFn: async () => {
       const response = await kasApi.getSummary();
       return response;
     },
-    enabled: isAuthenticated && canAccessKas,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error: any) => {
-      if (error?.response?.status === 401 || error?.response?.status === 403) {
-        return false;
-      }
-      return failureCount < 3;
-    },
+    // enabled: true,
   });
 };
 
 export const useMembers = () => {
-  const { isBendahara, isKoordinator, isStaff, user, isAuthenticated } =
-    useAuth();
-  
-
-  const canAccessMembers = isBendahara || isKoordinator || isStaff;
-
- 
+  const { treasurerEschoolId } = useAuth();
 
   return useQuery({
     queryKey: kasQueryKeys.members,
     queryFn: async () => {
-      if (!user) {
-        throw new Error("User is not available");
-      }
-      const response = await memberApi.getMembers(user.eschool_id);
+      const response = await memberApi.getMembersByEschool(treasurerEschoolId);
       return response;
     },
-    enabled: isAuthenticated && canAccessMembers,
-    staleTime: 10 * 60 * 1000, // 10 minutes (members don't change often)
-    retry: (failureCount, error: unknown) => {
-      if (error?.response?.status === 401 || error?.response?.status === 403) {
-        return false;
-      }
-      return failureCount < 3;
+    enabled: !!treasurerEschoolId,
+    select: (data) => {
+      // Transform the data to match what the components expect
+      return data?.data?.members || [];
     },
   });
 };
@@ -108,7 +81,7 @@ export const useAddIncome = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: KasIncomeData) => {
+    mutationFn: async (data: IncomeFormData) => {
       const response = await kasApi.addIncome(data);
       return response;
     },
@@ -116,7 +89,7 @@ export const useAddIncome = () => {
       // Invalidate and refetch kas-related queries
       queryClient.invalidateQueries({ queryKey: kasQueryKeys.records });
       queryClient.invalidateQueries({ queryKey: kasQueryKeys.summary });
-      // 
+      //
     },
     onError: (error: any) => {
       console.error(
@@ -139,7 +112,6 @@ export const useAddExpense = () => {
       // Invalidate and refetch kas-related queries
       queryClient.invalidateQueries({ queryKey: kasQueryKeys.records });
       queryClient.invalidateQueries({ queryKey: kasQueryKeys.summary });
-      
     },
     onError: (error: any) => {
       console.error(
@@ -150,15 +122,50 @@ export const useAddExpense = () => {
   });
 };
 
+export const useUpdateKasRecord = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: number;
+      data: Partial<KasExpenseData>;
+    }) => {
+      const response = await kasApi.updateRecord(id, data);
+      return response;
+    },
+    onSuccess: (data) => {
+      // Invalidate and refetch kas-related queries
+      queryClient.invalidateQueries({ queryKey: kasQueryKeys.records });
+      queryClient.invalidateQueries({ queryKey: kasQueryKeys.summary });
+    },
+    onError: (error: any) => {
+      console.error(
+        "Failed to update record:",
+        error?.response?.data?.message || error.message
+      );
+    },
+  });
+};
+
 export const useExportKasRecords = () => {
+  const { treasurerEschoolId } = useAuth();
+
   return useMutation({
     mutationFn: async (params: {
       type?: "income" | "expense";
       month?: number;
       year?: number;
       format?: "csv" | "excel";
+      date_from?: string;
+      date_to?: string;
     }) => {
-      const blob = await kasApi.exportRecords(params);
+      const blob = await kasApi.exportRecords({
+        ...params,
+        eschoolId: treasurerEschoolId,
+      });
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -175,13 +182,14 @@ export const useExportKasRecords = () => {
       return blob;
     },
     onSuccess: () => {
-      
+      // Show success message
+      toast.success("Export completed successfully");
     },
-    onError: (error: unknown) => {
-      console.error(
-        "Failed to export kas records:",
-        error?.response?.data?.message || error.message
-      );
+    onError: (error: any) => {
+      console.error("Failed to export kas records:", error?.message);
+
+      // Show error message to user
+      toast.error(`Export failed: ${error?.message || "Unknown error"}`);
     },
   });
 };
@@ -193,6 +201,7 @@ export const useKasManagement = () => {
   const membersQuery = useMembers();
   const addIncomeMutation = useAddIncome();
   const addExpenseMutation = useAddExpense();
+  const updateRecordMutation = useUpdateKasRecord();
   const exportRecordsMutation = useExportKasRecords();
 
   return {
@@ -215,8 +224,8 @@ export const useKasManagement = () => {
         payment_percentage: 0,
       },
     },
-    members: membersQuery.data?.members || [],
-    eschool: membersQuery.data?.eschool,
+    members: membersQuery.data || [],
+    // eschool: membersQuery?.data?.eschool,
 
     // Loading states
     isLoadingRecords: recordsQuery.isLoading,
@@ -224,20 +233,36 @@ export const useKasManagement = () => {
     isLoadingMembers: membersQuery.isLoading,
     isAddingIncome: addIncomeMutation.isPending,
     isAddingExpense: addExpenseMutation.isPending,
+    isUpdatingRecord: updateRecordMutation.isPending,
     isExporting: exportRecordsMutation.isPending,
 
     // Error states
-    recordsError: recordsQuery.error,
-    summaryError: summaryQuery.error,
-    membersError: membersQuery.error,
-    addIncomeError: addIncomeMutation.error,
-    addExpenseError: addExpenseMutation.error,
-    exportError: exportRecordsMutation.error,
+    recordsError: recordsQuery.error || null,
+    summaryError: summaryQuery.error || null,
+    membersError: membersQuery.error || null,
+    addIncomeError: addIncomeMutation.error || null,
+    addExpenseError: addExpenseMutation.error || null,
+    updateRecordError: updateRecordMutation.error || null,
+    exportError: exportRecordsMutation.error || null,
 
     // Actions
     addIncome: addIncomeMutation.mutate,
     addExpense: addExpenseMutation.mutate,
-    exportRecords: exportRecordsMutation.mutate,
+    updateRecord: updateRecordMutation.mutate,
+    exportRecords: (
+      params: any,
+      options?: { onSuccess?: () => void; onError?: (error: any) => void }
+    ) => {
+      exportRecordsMutation.mutate(params, {
+        onSuccess: options?.onSuccess,
+        onError: (error) => {
+          // Call the onError callback if provided
+          if (options?.onError) {
+            options.onError(error);
+          }
+        },
+      });
+    },
 
     // Refetch functions
     refetchRecords: recordsQuery.refetch,
@@ -250,6 +275,7 @@ export const useKasManagement = () => {
     membersQuery,
     addIncomeMutation,
     addExpenseMutation,
+    updateRecordMutation,
     exportRecordsMutation,
   };
 };

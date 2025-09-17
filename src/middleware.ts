@@ -15,7 +15,9 @@ export async function middleware(request: NextRequest) {
 
   // Get auth tokens from cookies
   const authToken = request.cookies.get("token")?.value;
+  console.log(`THIS IS  ~ authToken:`, authToken)
   const refreshToken = request.cookies.get("refresh_token")?.value;
+  console.log(`THIS IS  ~ refreshToken:`, refreshToken)
 
   // If it's a protected path
   if (isProtectedPath) {

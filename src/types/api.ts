@@ -1,10 +1,28 @@
 // User interfaces
+export interface UserRole {
+  id: number;
+  role: "supervisor" | "coordinator" | "treasurer" | "member";
+  eschool_id: number;
+  eschool_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface User {
   id: number;
   name: string;
   email: string;
-  role: "siswa" | "bendahara" | "koordinator" | "staff";
-  eschool_id: number;
+  profile: {
+    id: number;
+    name: string;
+    date_of_birth: string;
+    gender: string;
+    address: string | null;
+    status: string;
+    created_at: string;
+    updated_at: string;
+  };
+  roles: UserRole[];
 }
 
 // Auth-related interfaces
@@ -112,33 +130,90 @@ export interface School {
 export interface Eschool {
   id: number;
   name: string;
+  description: string | null;
   school_id: number;
-  coordinator_id: number;
-  treasurer_id: number;
-  description?: string;
-  monthly_kas_amount: number;
-  schedule_days: Array<string>;
-  total_schedule_days: number;
+  coordinator_id: number | null;
+  treasurer_id: number | null;
+  monthly_kas_amount: number | null;
+  schedule_days: string[] | null;
+  total_schedule_days: number | null;
   is_active: boolean;
+  members_count: number;
+  coordinator?: User;
+  treasurer?: User;
   created_at: string;
   updated_at: string;
 }
 
 // Attendance interfaces
 export interface AttendanceStats {
-  today: { present: number; total: number; percentage: number };
-  week: { present: number; total: number; percentage: number };
-  month: { present: number; total: number; percentage: number };
-  total_members: number;
+  total_records: number;
+  total_present: number;
+  total_absent: number;
+  total_late: number;
+  attendance_rate: number;
+  this_week: {
+    total: number;
+    present: number;
+    absent: number;
+    rate: number;
+  };
+  this_month: {
+    total: number;
+    present: number;
+    absent: number;
+    rate: number;
+  };
+}
+
+export interface AttendanceAnalytics {
+  period: string;
+  date_range: {
+    start: string;
+    end: string;
+  };
+  overall: {
+    total_members: number;
+    total_present: number;
+    total_possible: number;
+    attendance_rate: number;
+  };
+  daily_summary: Array<{
+    date: string;
+    formatted_date: string;
+    day_name: string;
+    present: number;
+    absent: number;
+    total: number;
+    attendance_rate: number;
+  }>;
+  member_attendance: Array<{
+    id: number;
+    name: string;
+    student_id: string | null;
+    present_days: number;
+    total_days: number;
+    attendance_rate: number;
+    status: string;
+  }>;
+  weekday_analysis: Array<{
+    day: string;
+    short_day: string;
+    average_attendance_rate: number;
+    total_sessions: number;
+    total_present: number;
+    total_possible: number;
+  }>;
 }
 
 export interface AttendanceFormData {
-  eschool_id: number;
+  eschool_id?: number;
   date: string;
   members: {
     member_id: string;
     is_present: boolean;
     notes: string | null;
+    proof_document?: File | null;
   }[];
 }
 
@@ -149,16 +224,29 @@ export interface CreateAttendanceParams {
 
 export interface UpdateAttendanceParams {
   id: number;
-  data: any;
+  data: unknown;
+}
+
+export interface AttendanceMember {
+  user_id: number;
+  name: string;
+  student_id: string;
 }
 
 export interface AttendanceRecord {
   id: number;
   date: string;
   is_present: boolean;
+  status: string;
   notes?: string | null;
+  proof_document?: string | null;
   member: Member;
-  recorder: User;
+  recorder?: {
+    user_id: number | null;
+    name: string;
+  };
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PaginationLinks {

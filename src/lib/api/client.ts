@@ -1,5 +1,6 @@
 // client.ts - Axios client with JWT refresh token implementation
 import axios, { AxiosResponse } from "axios";
+import { useAuthStore } from "@/lib/stores/auth";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -10,7 +11,6 @@ const apiClient = axios.create({
   timeout: 10000,
   withCredentials: true, // Important for cookies
   headers: {
-    "Content-Type": "application/json",
     Accept: "application/json",
     "X-Requested-With": "XMLHttpRequest", // Important for Laravel
   },
@@ -20,12 +20,11 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Debug logging
-  
 
     // With httpOnly cookies, we don't need to manually add Authorization header
     // The browser will automatically send the cookies with each request
     // Just log that we're making a request
-  
+
     return config;
   },
   (error) => {
@@ -58,8 +57,6 @@ const processQueue = (error: unknown, token: string | null = null) => {
 // Response interceptor with automatic token refresh
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
- 
-
     // Check if this is a logout response
     if (response.config.url?.includes("/logout") && response.status === 200) {
       if (typeof window !== "undefined") {
@@ -97,11 +94,20 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
+        console.log("Attempting to refresh token...");
         // With httpOnly cookies, we can't check if refresh token exists
         // Just attempt to refresh - if it fails, the backend will return 401
         const response = await apiClient.post("/refresh");
         if (response.status === 200) {
-          
+          console.log("Token refreshed successfully");
+
+          // Update auth state with refreshed user data
+          if (response.data?.user) {
+            console.log("Updating auth state with refreshed user data");
+            const { login } = useAuthStore.getState();
+            login(response.data.user);
+          }
+
           // Token refreshed successfully, retry original request
           processQueue(null, null);
           return apiClient(originalRequest);
@@ -111,7 +117,12 @@ apiClient.interceptors.response.use(
         // Refresh failed, redirect to login
         processQueue(refreshError, null);
         if (typeof window !== "undefined") {
-          localStorage.removeItem("auth-storage");
+          console.log("Redirecting to login due to refresh failure");
+          // Clear any remaining auth state and cookies
+          document.cookie =
+            "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+          document.cookie =
+            "refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
           window.location.href = "/login";
         }
         return Promise.reject(refreshError);
@@ -123,7 +134,12 @@ apiClient.interceptors.response.use(
     // For other errors or if refresh failed
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("auth-storage");
+        console.log("401 error, clearing cookies and redirecting to login");
+        // Clear cookies and redirect to login
+        document.cookie =
+          "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        document.cookie =
+          "refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         window.location.href = "/login";
       }
     }

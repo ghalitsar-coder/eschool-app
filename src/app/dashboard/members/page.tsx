@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useMemberManagement } from "@/hooks/use-member-management";
-import { useAuthStore } from "@/lib/stores/auth";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,16 +37,22 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
-  Badge,
-} from "@/components/ui/badge";
-import { Search, Plus, Eye, Edit, Trash2, Filter, AlertCircle } from "lucide-react";
+  Search,
+  Plus,
+  Eye,
+  Edit,
+  Trash2,
+  Filter,
+  AlertCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const MemberManagementPage = () => {
-  const { user } = useAuthStore();
+  const { user } = useAuth();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -54,65 +60,41 @@ const MemberManagementPage = () => {
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [createNewUser, setCreateNewUser] = useState(false);
-  
-  // Form state for creating member
-  const [newMemberForm, setNewMemberForm] = useState({
-    // New user fields
-    new_user_name: '',
-    new_user_email: '',
-    new_user_password: '',
-    // Existing user field
-    existing_user_id: '',
-    // Member details
-    nip: '',
-    name: '',
-    student_id: '',
-    date_of_birth: '',
-    gender: '',
-    address: '',
-    phone: '',
-    email: '',
-    status: 'active',
-    // Staff fields
-    eschool_ids: [] as number[],
+  const [roleFilter, setRoleFilter] = useState("all");
+
+  // Form state for recruiting member
+  const [assignRoleForm, setAssignRoleForm] = useState({
+    user_id: "",
+    role: "member",
   });
 
   const {
     members,
-    schools,
-    eschools,
     users: availableUsers,
+    roleSummary,
     pagination,
     isLoadingMembers,
-    isLoadingSchools,
-    isLoadingEschools,
     isLoadingUsers,
-    isCreating,
+    isAssigning,
     isUpdating,
-    isDeleting,
+    isRemoving,
     membersError,
-    schoolsError,
-    eschoolsError,
     usersError,
-    createError,
+    assignError,
     updateError,
-    deleteError,
+    removeError,
     fetchMembers,
-    fetchSchools,
-    fetchEschools,
     fetchAvailableUsers,
-    createMember,
-    updateMember,
-    deleteMember,
+    assignRole,
+    updateRole,
+    removeRole,
   } = useMemberManagement({
     page: currentPage,
     perPage: 15,
     search: searchTerm,
-    userRole: user?.role,
+    roleFilter: roleFilter,
+    // userRole: user?.role,
   });
-
- 
 
   const handleViewMember = (member: any) => {
     setSelectedMember(member);
@@ -132,66 +114,38 @@ const MemberManagementPage = () => {
   const handleDeleteMember = async () => {
     try {
       if (!selectedMember) return;
-      await deleteMember(selectedMember.id);
+      await removeRole({
+        userId: selectedMember.user_id,
+      });
       setIsDeleteDialogOpen(false);
-      fetchMembers();
-      toast.success("Member deleted successfully");
+      toast.success("Role removed successfully");
     } catch (error: any) {
-      console.error("Error deleting member:", error);
-      toast.error("Failed to delete member", {
+      console.error("Error removing role:", error);
+      toast.error("Failed to remove role", {
         description: error?.message || "An unexpected error occurred",
       });
     }
   };
 
-  const handleCreateMember = async () => {
+  const handleAssignRole = async () => {
     try {
-      const createData = {
-        create_new_user: createNewUser,
-        ...(createNewUser ? {
-          new_user_name: newMemberForm.new_user_name,
-          new_user_email: newMemberForm.new_user_email,
-          new_user_password: newMemberForm.new_user_password,
-        } : {
-          existing_user_id: parseInt(newMemberForm.existing_user_id),
-        }),
-        ...(user?.role === 'staff' ? { eschool_ids: newMemberForm.eschool_ids } : {}),
-        nip: newMemberForm.nip || undefined,
-        name: newMemberForm.name,
-        student_id: newMemberForm.student_id || undefined,
-        date_of_birth: newMemberForm.date_of_birth || undefined,
-        gender: newMemberForm.gender || undefined,
-        address: newMemberForm.address || undefined,
-        phone: newMemberForm.phone || undefined,
-        email: newMemberForm.email || undefined,
-        status: newMemberForm.status,
+      const data = {
+        user_id: parseInt(assignRoleForm.user_id),
+        role: assignRoleForm.role,
       };
 
-      await createMember(createData);
+      await assignRole(data);
       setIsCreateDialogOpen(false);
-      fetchMembers();
-      toast.success("Member created successfully");
-      
+      toast.success("Member recruited successfully");
+
       // Reset form
-      setNewMemberForm({
-        new_user_name: '',
-        new_user_email: '',
-        new_user_password: '',
-        existing_user_id: '',
-        nip: '',
-        name: '',
-        student_id: '',
-        date_of_birth: '',
-        gender: '',
-        address: '',
-        phone: '',
-        email: '',
-        status: 'active',
-        eschool_ids: [],
+      setAssignRoleForm({
+        user_id: "",
+        role: "member",
       });
     } catch (error: any) {
-      console.error("Error creating member:", error);
-      toast.error("Failed to create member", {
+      console.error("Error recruiting member:", error);
+      toast.error("Failed to recruit member", {
         description: error?.message || "An unexpected error occurred",
       });
     }
@@ -203,7 +157,9 @@ const MemberManagementPage = () => {
         <div className="px-4 lg:px-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Member Management</h1>
+              <h1 className="text-2xl font-bold tracking-tight">
+                Member Management
+              </h1>
               <p className="text-muted-foreground">Manage eschool members</p>
             </div>
           </div>
@@ -224,7 +180,9 @@ const MemberManagementPage = () => {
       <div className="px-4 lg:px-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Member Management</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Member Management
+            </h1>
             <p className="text-muted-foreground">Manage eschool members</p>
           </div>
           <div className="flex items-center gap-2">
@@ -232,240 +190,204 @@ const MemberManagementPage = () => {
               <Filter className="h-4 w-4 mr-2" />
               Filter
             </Button>
-            {(user.role === 'koordinator' || user.role === 'staff') && (
-              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            {
+              <Dialog
+                open={isCreateDialogOpen}
+                onOpenChange={setIsCreateDialogOpen}
+              >
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Member
+                    Rekrut Member
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-                  <form onSubmit={(e) => {
-                    e.preventDefault();
-                    handleCreateMember();
-                  }}>
+                <DialogContent
+                  className={
+                    assignRoleForm.user_id ? "sm:max-w-2xl" : "sm:max-w-md"
+                  }
+                >
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleAssignRole();
+                    }}
+                  >
                     <DialogHeader>
-                      <DialogTitle>Add New Member</DialogTitle>
+                      <DialogTitle>Rekrut Member Baru</DialogTitle>
                       <DialogDescription>
-                        Create a new member for your eschool
+                        Pilih user yang akan direkrut ke eschool ini
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
-                      <div className="mt-4 space-y-4">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            id="createNewUser"
-                            checked={createNewUser}
-                            onChange={(e) => setCreateNewUser(e.target.checked)}
-                            className="h-4 w-4"
-                          />
-                          <label htmlFor="createNewUser" className="text-sm font-medium">
-                            Create new user account
-                          </label>
+                    <div className="py-4 space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium">User</Label>
+                        <Select
+                          value={assignRoleForm.user_id}
+                          onValueChange={(value) =>
+                            setAssignRoleForm({
+                              ...assignRoleForm,
+                              user_id: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Pilih user" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableUsers?.map((user) => (
+                              <SelectItem
+                                key={user.id}
+                                value={user.id.toString()}
+                              >
+                                {user.name} ({user.email})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* User Profile Display */}
+                      {assignRoleForm.user_id && (
+                        <div className="p-4 border rounded-lg bg-muted">
+                          <h4 className="font-medium mb-2">Profil User</h4>
+                          {(() => {
+                            const selectedUser = availableUsers?.find(
+                              (user) =>
+                                user.id.toString() === assignRoleForm.user_id
+                            );
+                            return selectedUser ? (
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-muted-foreground">
+                                    Nama:
+                                  </span>
+                                  <span className="text-sm">
+                                    {selectedUser.name}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-muted-foreground">
+                                    Email:
+                                  </span>
+                                  <span className="text-sm">
+                                    {selectedUser.email}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-muted-foreground">
+                                    Base Role:
+                                  </span>
+                                  <span className="text-sm">
+                                    {selectedUser.base_role}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-muted-foreground">
+                                    QWEN Compliant:
+                                  </span>
+                                  <span className="text-sm">
+                                    {selectedUser.qwen_compliant
+                                      ? "Ya"
+                                      : "Tidak"}
+                                  </span>
+                                </div>
+
+                                {/* Current Eschool Roles */}
+                                <div className="pt-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    Roles Saat Ini:
+                                  </span>
+                                  {selectedUser.current_eschool_roles.length >
+                                  0 ? (
+                                    <div className="mt-1 space-y-1">
+                                      {selectedUser.current_eschool_roles.map(
+                                        (role, index) => (
+                                          <div
+                                            key={index}
+                                            className="flex justify-between text-sm"
+                                          >
+                                            <span>{role.eschool_name}</span>
+                                            <Badge variant="secondary">
+                                              {role.role}
+                                            </Badge>
+                                          </div>
+                                        )
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm mt-1">
+                                      Tidak ada role saat ini
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
                         </div>
-                        
-                        {createNewUser ? (
-                          <div className="space-y-3">
-                            <h4 className="font-medium">New User Details</h4>
-                            <div>
-                              <label className="text-sm font-medium">Name</label>
-                              <input
-                                type="text"
-                                placeholder="Full name"
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.new_user_name}
-                                onChange={(e) => setNewMemberForm({...newMemberForm, new_user_name: e.target.value})}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium">Email</label>
-                              <input
-                                type="email"
-                                placeholder="Email address"
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.new_user_email}
-                                onChange={(e) => setNewMemberForm({...newMemberForm, new_user_email: e.target.value})}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium">Password</label>
-                              <input
-                                type="password"
-                                placeholder="Password"
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.new_user_password}
-                                onChange={(e) => setNewMemberForm({...newMemberForm, new_user_password: e.target.value})}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <h4 className="font-medium">Select Existing User</h4>
-                            <div>
-                              <label className="text-sm font-medium">User</label>
-                              <select 
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.existing_user_id}
-                                onChange={(e) => setNewMemberForm({...newMemberForm, existing_user_id: e.target.value})}
-                              >
-                                <option value="">Select a user</option>
-                                {availableUsers?.map((user) => (
-                                  <option key={user.id} value={user.id}>
-                                    {user.name} ({user.email})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        )}
-                        
-                        <div className="space-y-3">
-                          <h4 className="font-medium">Member Details</h4>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="text-sm font-medium">NIP</label>
-                              <input
-                                type="text"
-                                placeholder="NIP"
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.nip}
-                                onChange={(e) => setNewMemberForm({...newMemberForm, nip: e.target.value})}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium">Student ID</label>
-                              <input
-                                type="text"
-                                placeholder="Student ID"
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.student_id}
-                                onChange={(e) => setNewMemberForm({...newMemberForm, student_id: e.target.value})}
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium">Full Name</label>
-                            <input
-                              type="text"
-                              placeholder="Full name"
-                              className="w-full px-3 py-2 border rounded-md"
-                              value={newMemberForm.name}
-                              onChange={(e) => setNewMemberForm({...newMemberForm, name: e.target.value})}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="text-sm font-medium">Date of Birth</label>
-                              <input
-                                type="date"
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.date_of_birth}
-                                onChange={(e) => setNewMemberForm({...newMemberForm, date_of_birth: e.target.value})}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium">Gender</label>
-                              <select 
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.gender}
-                                onChange={(e) => setNewMemberForm({...newMemberForm, gender: e.target.value})}
-                              >
-                                <option value="">Select gender</option>
-                                <option value="L">Male</option>
-                                <option value="P">Female</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium">Address</label>
-                            <textarea
-                              placeholder="Address"
-                              className="w-full px-3 py-2 border rounded-md"
-                              rows={2}
-                              value={newMemberForm.address}
-                              onChange={(e) => setNewMemberForm({...newMemberForm, address: e.target.value})}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="text-sm font-medium">Phone</label>
-                              <input
-                                type="tel"
-                                placeholder="Phone number"
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.phone}
-                                onChange={(e) => setNewMemberForm({...newMemberForm, phone: e.target.value})}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium">Status</label>
-                              <select 
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.status}
-                                onChange={(e) => setNewMemberForm({...newMemberForm, status: e.target.value})}
-                              >
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                              </select>
-                            </div>
-                          </div>
-                          {/* For koordinator, eschool is automatically set and not shown */}
-                          {user?.role === 'staff' && eschools && eschools.length > 0 && (
-                            <div>
-                              <label className="text-sm font-medium">Eschools</label>
-                              <select 
-                                multiple 
-                                className="w-full px-3 py-2 border rounded-md"
-                                value={newMemberForm.eschool_ids.map(String)}
-                                onChange={(e) => {
-                                  const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
-                                  setNewMemberForm({...newMemberForm, eschool_ids: selected});
-                                }}
-                              >
-                                <option value="">Select eschools</option>
-                                {eschools?.map((eschool) => (
-                                  <option key={eschool.id} value={eschool.id}>
-                                    {eschool.name}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                        </div>
+                      )}
+
+                      <div>
+                        <Label className="text-sm font-medium">Role</Label>
+                        <Select
+                          value={assignRoleForm.role}
+                          onValueChange={(value) =>
+                            setAssignRoleForm({
+                              ...assignRoleForm,
+                              role: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Pilih role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="member">Member</SelectItem>
+                            <SelectItem value="bendahara" disabled>
+                              Bendahara (bendahara sudah terisi){" "}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} type="button">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsCreateDialogOpen(false)}
+                        type="button"
+                      >
                         Cancel
                       </Button>
-                      <Button type="submit" disabled={isCreating}>
-                        {isCreating ? 'Saving...' : 'Save'}
+                      <Button
+                        type="submit"
+                        disabled={isAssigning || !assignRoleForm.user_id}
+                      >
+                        {isAssigning ? "Merekrut..." : "Rekrut Member"}
                       </Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
               </Dialog>
-            )}
+            }
           </div>
         </div>
       </div>
 
       {/* Error Alerts */}
-      {(membersError || schoolsError || eschoolsError || usersError || createError || updateError || deleteError) && (
+      {(membersError ||
+        usersError ||
+        assignError ||
+        updateError ||
+        removeError) && (
         <div className="px-4 lg:px-6">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error</AlertTitle>
             <AlertDescription>
               {membersError && <div>Members: {membersError.message}</div>}
-              {schoolsError && <div>Schools: {schoolsError.message}</div>}
-              {eschoolsError && <div>Eschools: {eschoolsError.message}</div>}
               {usersError && <div>Users: {usersError.message}</div>}
-              {createError && <div>Create: {createError.message}</div>}
+              {assignError && <div>Assign: {assignError.message}</div>}
               {updateError && <div>Update: {updateError.message}</div>}
-              {deleteError && <div>Delete: {deleteError.message}</div>}
+              {removeError && <div>Delete: {removeError.message}</div>}
             </AlertDescription>
           </Alert>
         </div>
@@ -478,6 +400,16 @@ const MemberManagementPage = () => {
             <div className="flex items-center justify-between">
               <CardTitle>Members</CardTitle>
               <div className="flex items-center gap-2">
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="bendahara">Bendahara</SelectItem>
+                  </SelectContent>
+                </Select>
                 <div className="relative">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
@@ -502,49 +434,47 @@ const MemberManagementPage = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
+                      <TableHead>User</TableHead>
                       <TableHead>Student ID</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>School</TableHead>
-                      <TableHead>Eschools</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Attendance Rate</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {members && members.length > 0 ? (
                       members.map((member) => (
-                        <TableRow key={member.id}>
+                        <TableRow key={member.user_id}>
                           <TableCell>
-                            <div className="font-medium">{member.name || member.user?.name}</div>
+                            <div className="font-medium">{member.name}</div>
                             <div className="text-sm text-muted-foreground">
-                              {member.nip && `NIP: ${member.nip}`}
+                              {member.email}
                             </div>
                           </TableCell>
                           <TableCell>{member.student_id || "-"}</TableCell>
-                          <TableCell>{member.user?.email || member.email || "-"}</TableCell>
-                          <TableCell>{member.school?.name || "-"}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {member.eschools?.slice(0, 2).map((eschool: any) => (
-                                <Badge key={eschool.id} variant="secondary" className="text-xs">
-                                  {eschool.name}
-                                </Badge>
-                              ))}
-                              {member.eschools?.length > 2 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  +{member.eschools.length - 2}
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
                           <TableCell>
                             <Badge
-                              variant="outline"
-                              className={member.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+                              variant={
+                                member.role_in_eschool === "coordinator"
+                                  ? "default"
+                                  : member.role_in_eschool === "bendahara"
+                                  ? "secondary"
+                                  : "outline"
+                              }
                             >
-                              {member.is_active ? "Active" : "Inactive"}
+                              {member.role_in_eschool}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {member.attendance_summary.attendance_rate}%
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                ({member.attendance_summary.attended}/
+                                {member.attendance_summary.total_sessions})
+                              </span>
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
@@ -555,7 +485,8 @@ const MemberManagementPage = () => {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {(user.role === 'koordinator' || user.role === 'staff') && (
+                              {(user?.role === "coordinator" ||
+                                user?.role === "supervisor") && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -567,7 +498,9 @@ const MemberManagementPage = () => {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleDeleteMemberPrompt(member)}
+                                    onClick={() =>
+                                      handleDeleteMemberPrompt(member)
+                                    }
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -579,8 +512,11 @@ const MemberManagementPage = () => {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                          {searchTerm
+                        <TableCell
+                          colSpan={5}
+                          className="text-center py-8 text-muted-foreground"
+                        >
+                          {searchTerm || roleFilter !== "all"
                             ? "No members found matching your search."
                             : "No members found."}
                         </TableCell>
@@ -588,20 +524,29 @@ const MemberManagementPage = () => {
                     )}
                   </TableBody>
                 </Table>
-                
+
                 {/* Pagination */}
                 {pagination && (
                   <div className="flex items-center justify-between mt-4">
                     <div className="text-sm text-muted-foreground">
-                      Showing {((pagination.current_page - 1) * pagination.per_page) + 1} to{" "}
-                      {Math.min(pagination.current_page * pagination.per_page, pagination.total)} of{" "}
-                      {pagination.total} members
+                      Showing{" "}
+                      {(pagination.current_page - 1) * pagination.per_page + 1}{" "}
+                      to{" "}
+                      {Math.min(
+                        pagination.current_page * pagination.per_page,
+                        pagination.total
+                      )}{" "}
+                      of {pagination.total} members
                     </div>
                     <div className="flex items-center space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setCurrentPage(Math.max(1, pagination.current_page - 1))}
+                        onClick={() =>
+                          setCurrentPage(
+                            Math.max(1, pagination.current_page - 1)
+                          )
+                        }
                         disabled={pagination.current_page === 1}
                       >
                         Previous
@@ -612,8 +557,17 @@ const MemberManagementPage = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setCurrentPage(Math.min(pagination.last_page, pagination.current_page + 1))}
-                        disabled={pagination.current_page === pagination.last_page}
+                        onClick={() =>
+                          setCurrentPage(
+                            Math.min(
+                              pagination.last_page,
+                              pagination.current_page + 1
+                            )
+                          )
+                        }
+                        disabled={
+                          pagination.current_page === pagination.last_page
+                        }
                       >
                         Next
                       </Button>
@@ -640,62 +594,93 @@ const MemberManagementPage = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Name</Label>
-                  <p className="text-gray-600">{selectedMember.name || selectedMember.user?.name}</p>
+                  <p className="text-gray-600">{selectedMember.name}</p>
                 </div>
                 <div>
                   <Label>Student ID</Label>
-                  <p className="text-gray-600">{selectedMember.student_id || "-"}</p>
-                </div>
-                <div>
-                  <Label>NIP</Label>
-                  <p className="text-gray-600">{selectedMember.nip || "-"}</p>
-                </div>
-                <div>
-                  <Label>Phone</Label>
-                  <p className="text-gray-600">{selectedMember.phone || "-"}</p>
+                  <p className="text-gray-600">
+                    {selectedMember.student_id || "-"}
+                  </p>
                 </div>
                 <div>
                   <Label>Email</Label>
-                  <p className="text-gray-600">{selectedMember.user?.email || selectedMember.email || "-"}</p>
+                  <p className="text-gray-600">{selectedMember.email || "-"}</p>
                 </div>
                 <div>
-                  <Label>Gender</Label>
+                  <Label>Role</Label>
+                  <Badge
+                    variant={
+                      selectedMember.role_in_eschool === "coordinator"
+                        ? "default"
+                        : selectedMember.role_in_eschool === "bendahara"
+                        ? "secondary"
+                        : "outline"
+                    }
+                  >
+                    {selectedMember.role_in_eschool}
+                  </Badge>
+                </div>
+                <div>
+                  <Label>Attendance Rate</Label>
                   <p className="text-gray-600">
-                    {selectedMember.gender === "L" ? "Male" : selectedMember.gender === "P" ? "Female" : "-"}
+                    {selectedMember.attendance_summary.attendance_rate}% (
+                    {selectedMember.attendance_summary.attended}/
+                    {selectedMember.attendance_summary.total_sessions})
                   </p>
                 </div>
                 <div>
                   <Label>Status</Label>
                   <Badge
                     variant="outline"
-                    className={selectedMember.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
+                    className={
+                      selectedMember.status === "active"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }
                   >
-                    {selectedMember.is_active ? "Active" : "Inactive"}
+                    {selectedMember.status === "active" ? "Active" : "Inactive"}
                   </Badge>
                 </div>
-                <div>
-                  <Label>School</Label>
-                  <p className="text-gray-600">{selectedMember.school?.name || "-"}</p>
-                </div>
               </div>
+
               <div>
-                <Label>Eschools</Label>
+                <Label>Other Roles</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {selectedMember.eschools?.map((eschool: any) => (
-                    <Badge key={eschool.id} variant="secondary">
-                      {eschool.name}
-                    </Badge>
-                  ))}
+                  {selectedMember.other_roles?.length > 0 ? (
+                    selectedMember.other_roles.map((role: any) => (
+                      <Badge key={role.eschool_id} variant="secondary">
+                        {role.eschool_name} ({role.role})
+                      </Badge>
+                    ))
+                  ) : (
+                    <p className="text-gray-600">No other roles</p>
+                  )}
                 </div>
               </div>
+
               <div>
-                <Label>Address</Label>
-                <p className="text-gray-600">{selectedMember.address || "-"}</p>
+                <Label>Member Details</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                  <div>
+                    Gender: {selectedMember.member_details?.gender || "-"}
+                  </div>
+                  <div>
+                    Date of Birth:{" "}
+                    {selectedMember.member_details?.date_of_birth || "-"}
+                  </div>
+                  <div>Phone: {selectedMember.phone || "-"}</div>
+                  <div>
+                    Address: {selectedMember.member_details?.address || "-"}
+                  </div>
+                </div>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsViewDialogOpen(false)}
+            >
               Close
             </Button>
           </DialogFooter>
@@ -706,16 +691,19 @@ const MemberManagementPage = () => {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Member</DialogTitle>
-            <DialogDescription>
-              Update member information
-            </DialogDescription>
+            <DialogTitle>Edit Role</DialogTitle>
+            <DialogDescription>Update member role</DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <p className="text-center text-muted-foreground">Edit member form would go here</p>
+            <p className="text-center text-muted-foreground">
+              Edit role form would go here
+            </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button>Save Changes</Button>
@@ -727,9 +715,22 @@ const MemberManagementPage = () => {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogTitle>Confirm Role Removal</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this member? This action cannot be undone.
+              Are you sure you want to remove this role from the user? This
+              action cannot be undone.
+              {selectedMember && (
+                <div className="mt-2 p-2 bg-red-50 rounded">
+                  <div>
+                    <span className="font-medium">User:</span>{" "}
+                    {selectedMember.name}
+                  </div>
+                  <div>
+                    <span className="font-medium">Role:</span>{" "}
+                    {selectedMember.role_in_eschool}
+                  </div>
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -739,8 +740,12 @@ const MemberManagementPage = () => {
             >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteMember} disabled={isDeleting}>
-              {isDeleting ? "Deleting..." : "Delete"}
+            <Button
+              variant="destructive"
+              onClick={handleDeleteMember}
+              disabled={isRemoving}
+            >
+              {isRemoving ? "Removing..." : "Remove Role"}
             </Button>
           </DialogFooter>
         </DialogContent>

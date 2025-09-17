@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   IconCamera,
   IconChartBar,
@@ -17,12 +17,12 @@ import {
   IconSearch,
   IconSettings,
   IconUsers,
-} from "@tabler/icons-react"
+} from "@tabler/icons-react";
 
-import { NavDocuments } from "@/components/nav-documents"
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
+import { NavDocuments } from "@/components/nav-documents";
+import { NavMain } from "@/components/nav-main";
+import { NavSecondary } from "@/components/nav-secondary";
+import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
@@ -31,41 +31,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
+import { useAuth } from "@/hooks/use-auth";
 
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
-    },
-    {
-      title: "Kas",
-      url: "/dashboard/kas",
-      icon: IconListDetails,
-    },
-    {
-      title: "Attendance",
-      url: "/dashboard/attendance",
-      icon: IconChartBar,
-    },
-    {
-      title: "Members",
-      url: "/dashboard/members",
-      icon: IconFolder,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: IconUsers,
-    },
-  ],
   navClouds: [
     {
       title: "Capture",
@@ -148,9 +117,85 @@ const data = {
       icon: IconFileWord,
     },
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user, isBendahara, isKoordinator, isStaff, isMember } = useAuth();
+
+  // Generate navigation items based on user role
+  const getNavItems = () => {
+    const baseItems = [
+      {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: IconUsers,
+      },
+      {
+        title: "Profile",
+        url: "/dashboard/profile",
+        icon: IconUsers,
+      },
+    ];
+
+    if (isBendahara) {
+      return [
+        ...baseItems,
+        {
+          title: "Kas",
+          url: "/dashboard/kas",
+          icon: IconListDetails,
+        },
+      ];
+    }
+
+    if (isKoordinator) {
+      return [
+        ...baseItems,
+        {
+          title: "Attendance",
+          url: "/dashboard/attendance",
+          icon: IconChartBar,
+        },
+        {
+          title: "Members",
+          url: "/dashboard/members",
+          icon: IconFolder,
+        },
+        {
+          title: "Kas",
+          url: "/dashboard/kas",
+          icon: IconListDetails,
+        },
+      ];
+    }
+
+    if (isStaff) {
+      return [
+        ...baseItems,
+        {
+          title: "Eschool",
+          url: "/dashboard/eschool",
+          icon: IconUsers,
+        },
+      ];
+    }
+
+    if (isMember) {
+      return baseItems;
+    }
+
+    // Default navigation
+    return [
+      {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: IconDashboard,
+      },
+    ];
+  };
+
+  const navItems = getNavItems();
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -162,20 +207,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <span className="text-base font-semibold">Eschool-App</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={navItems} />
+        {/* <NavDocuments items={data.documents} /> */}
+        {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

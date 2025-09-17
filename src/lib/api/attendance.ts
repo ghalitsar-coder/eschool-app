@@ -1,127 +1,285 @@
-// attendanceApi.ts - Attendance Management API based on Laravel backend
-import { 
-  ApiResponse, 
-  AttendanceFormData, 
-  AttendanceRecord, 
-  AttendanceStats 
+// attendanceApi.ts - Enhanced Attendance Management API with Multi-Role Support
+import {
+  ApiResponse,
+  AttendanceFormData,
+  AttendanceRecord,
+  AttendanceStats,
+  AttendanceAnalytics,
+  AttendanceMember,
 } from "@/types/api";
+
 import apiClient from "./client";
 
 export const attendanceApi = {
-  // Record attendance
+  // Record attendance using new multi-role endpoint
   recordAttendance: async (
-    data: AttendanceFormData
+    eschoolId: number,
+    data: FormData | AttendanceFormData
   ): Promise<ApiResponse<AttendanceRecord>> => {
     try {
       // Log the data being sent for debugging
-      console.log("Sending attendance data:", data);
-      
-      const formattedData = {
-        ...data,
-        members: data.members.map(member => ({
-          ...member,
-          is_present: Boolean(member.is_present), // Ensure boolean type
-          member_id: Number(member.member_id) // Ensure number type
-        }))
-      };
-      
-      // Log the formatted data
-      console.log("Formatted attendance data:", formattedData);
-      
-      const response = await apiClient.post("/attendance/record", formattedData);
-      return response.data;
-    } catch (error: any) {
-      console.error("Error recording attendance:", error);
-      
-      // Log more detailed error information
-      if (error.response) {
-        console.error("Response data:", error.response.data);
-        console.error("Response status:", error.response.status);
-        console.error("Response headers:", error.response.headers);
-      } else if (error.request) {
-        console.error("Request data:", error.request);
+
+      let requestData = data;
+      let headers = {};
+
+      // If it's FormData, we need to handle boolean conversion on server side
+      if (data instanceof FormData) {
+        requestData = data;
+        headers = {
+          "Content-Type": "multipart/form-data",
+        };
       } else {
-        console.error("Error message:", error.message);
+        const formattedData: AttendanceFormData = {
+          ...data,
+          members: data.members.map((member) => ({
+            ...member,
+            is_present: Boolean(member.is_present), // Ensure boolean type
+            member_id: String(member.member_id), // Ensure string type for consistency
+          })),
+        };
+
+        requestData = formattedData;
+        headers = {
+          "Content-Type": "application/json",
+        };
       }
-      
+
+      const response = await apiClient.post<ApiResponse<AttendanceRecord>>(
+        `/eschool/attendance/record`,
+        requestData,
+        { headers }
+      );
+
+      return response.data;
+    } catch (error: unknown) {
+      console.error("Error recording attendance:", error);
+
+      // Log more detailed error information
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as {
+          response?: { data: unknown; status: number; headers: unknown };
+          request?: unknown;
+          message?: string;
+        };
+        if (axiosError.response) {
+          // console.error("Response data:", axiosError.response.data);
+          // console.error("Response status:", axiosError.response.status);
+          // console.error("Response headers:", axiosError.response.headers);
+        } else if (axiosError.request) {
+          console.error("Request data:", axiosError.request);
+        } else {
+          console.error("Error message:", axiosError.message);
+        }
+      }
+
       throw error;
     }
   },
 
-  // Get attendance records
+  // Get attendance records using new multi-role endpoint
   getAttendanceRecords: async (params?: {
-    eschoolId?: number;
+    eschoolId: number;
     date?: string;
-      start_date?: string;
-      end_date?: string;
-  }): Promise<AttendanceRecord[]> => {
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+    member_id?: number;
+    is_present?: boolean;
+    page?: number;
+    per_page?: number;
+  }): Promise<{
+    data: AttendanceRecord[];
+    meta: {
+      total: number;
+      per_page: number;
+      current_page: number;
+      last_page: number;
+      from: number;
+      to: number;
+      has_next_page: boolean;
+      has_prev_page: boolean;
+    };
+  }> => {
+    console.log(`THIS IS  ~ params:`, params);
+
     try {
+      if (!params?.eschoolId) {
+        throw new Error("Eschool ID is required");
+      }
+
       // Convert camelCase keys to snake_case to match backend expectations
-      const convertedParams = params ? {
-        eschool_id: params.eschoolId,
+      const cleanParams = {
         date: params.date,
         start_date: params.start_date,
         end_date: params.end_date,
-      } : {};
-      
-      const response = await apiClient.get("/attendance/records", { 
-        params: convertedParams 
+        search: params.search,
+        member_id: params.member_id,
+        is_present: params.is_present,
+        page: params.page,
+        per_page: params.per_page || 10, // Default 10 per page
+      };
+
+      // Remove undefined values to avoid sending empty parameters
+      const filteredParams = Object.fromEntries(
+        Object.entries(cleanParams).filter(([, value]) => value !== undefined)
+      );
+
+      const response = await apiClient.get(`/eschool/attendance/records`, {
+        params: filteredParams,
       });
-      return Array.isArray(response.data.data) ? response.data.data : [];
+
+      return {
+        data: Array.isArray(response.data.data) ? response.data.data : [],
+        meta: response.data.meta || {
+          total: 0,
+          per_page: 10,
+          current_page: 1,
+          last_page: 1,
+          from: 0,
+          to: 0,
+          has_next_page: false,
+          has_prev_page: false,
+        },
+      };
     } catch (error) {
       console.error("Error fetching attendance records:", error);
       throw error;
     }
   },
 
-  // Get attendance statistics
-  getAttendanceStatistics: async (eschoolId: number): Promise<AttendanceStats> => {
+  // Get attendance statistics using new multi-role endpoint
+  getAttendanceStatistics: async (
+    _eschoolId: number
+  ): Promise<AttendanceStats> => {
     try {
-      const response = await apiClient.get("/attendance/statistics", {
-        params: { eschool_id: eschoolId }
-      });
-      return response.data;
+      const response = await apiClient.get(`/eschool/attendance/statistics`);
+      return response.data.data;
     } catch (error) {
       console.error("Error fetching attendance statistics:", error);
       throw error;
     }
   },
 
-  // Get members for attendance
-  getAttendanceMembers: async (eschoolId: number): Promise<any[]> => {
+  // Get attendance analytics using new multi-role endpoint
+  getAttendanceAnalytics: async (params: {
+    eschoolId: number;
+    period?: string;
+  }): Promise<AttendanceAnalytics> => {
     try {
-      // This would need to be implemented in the backend
-      // For now, we'll use the members endpoint
-      const response = await apiClient.get(`/members`, {
-        params: { eschool_id: eschoolId }
+      const response = await apiClient.get(`/eschool/attendance/analytics`, {
+        params: {
+          period: params.period || "week",
+        },
       });
-      console.log(`🚀 ~ attendance.ts:71 ~ response:`, response)
+      return response.data.data;
+    } catch (error) {
+      console.error("Error fetching attendance analytics:", error);
+      throw error;
+    }
+  },
 
-      return response.data.data || [];
+  // Get members for attendance using new multi-role endpoint
+  getAttendanceMembers: async (): Promise<AttendanceMember[]> => {
+    try {
+      // Use the new multi-role members list endpoint
+      const response = await apiClient.get(`/eschool/members/list`);
+
+      // Return the data array from the response
+      if (
+        response.data &&
+        response.data.success &&
+        Array.isArray(response.data.data)
+      ) {
+        return response.data.data;
+      }
+
+      return [];
     } catch (error) {
       console.error("Error fetching attendance members:", error);
       throw error;
     }
   },
 
-  // Update attendance record
+  // Update attendance record using new multi-role endpoint
   updateAttendance: async (
+    eschoolId: number,
     id: number,
-    data: any
+    data: Partial<AttendanceFormData> | FormData
   ): Promise<ApiResponse<AttendanceRecord>> => {
     try {
-      const response = await apiClient.put(`/attendance/records/${id}`, data);
-      return response.data;
+      console.log("Update attendance API - data type:", typeof data);
+      console.log("Is data FormData? ", data instanceof FormData);
+      console.log("Data constructor name:", data.constructor.name);
+
+      // Handle FormData differently from regular objects
+      let requestData = data;
+      let headers = {};
+
+      if (data instanceof FormData) {
+        // Log FormData contents specifically
+        console.log("FormData contents:");
+        for (const [key, value] of (data as FormData).entries()) {
+          console.log(key, value, typeof value);
+          if (value instanceof File) {
+            console.log("File details:", {
+              name: value.name,
+              size: value.size,
+              type: value.type,
+              lastModified: value.lastModified,
+            });
+          }
+        }
+
+        // For FormData, let the browser set the Content-Type header with proper boundary
+        requestData = data;
+        console.log("Sending as FormData");
+
+        // Add method spoofing for PUT request with FormData
+        // Laravel has issues with PUT requests and multipart/form-data
+        (requestData as FormData).append("_method", "PUT");
+
+        // Use POST with method spoofing instead of PUT for FormData
+        const response = await apiClient.post(
+          `/eschool/attendance/records/${id}`,
+          requestData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+        return response.data;
+      } else {
+        // For regular objects, send as JSON using apiClient
+        requestData = data;
+        headers = {
+          "Content-Type": "application/json",
+        };
+        console.log("Sending as JSON");
+        console.log("JSON data:", data);
+
+        const response = await apiClient.put(
+          `/eschool/attendance/records/${id}`,
+          requestData,
+          { headers }
+        );
+        return response.data;
+      }
     } catch (error) {
       console.error("Error updating attendance:", error);
       throw error;
     }
   },
 
-  // Delete attendance record
-  deleteAttendance: async (id: number): Promise<ApiResponse<void>> => {
+  // Delete attendance record using new multi-role endpoint
+  deleteAttendance: async (
+    eschoolId: number,
+    id: number
+  ): Promise<ApiResponse<void>> => {
     try {
-      const response = await apiClient.delete(`/attendance/${id}`);
+      const response = await apiClient.delete(
+        `/eschool/attendance/records/${id}`
+      );
       return response.data;
     } catch (error) {
       console.error("Error deleting attendance:", error);
@@ -129,16 +287,25 @@ export const attendanceApi = {
     }
   },
 
-  // Export attendance records
+  // Export attendance records using new multi-role endpoint
   exportRecords: async (params: {
     eschool_id: number;
     start_date?: string;
     end_date?: string;
-    format?: "csv" | "excel";
+    format?: "csv" | "pdf";
   }): Promise<Blob> => {
     try {
-      const response = await apiClient.get("/attendance/export", {
-        params,
+      // Use the new multi-role export endpoint
+      const endpoint =
+        params.format === "pdf"
+          ? `/eschool/attendance/export/pdf`
+          : `/eschool/attendance/export/csv`;
+
+      const response = await apiClient.get(endpoint, {
+        params: {
+          start_date: params.start_date,
+          end_date: params.end_date,
+        },
         responseType: "blob",
       });
       return response.data;

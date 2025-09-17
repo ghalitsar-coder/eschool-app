@@ -9,8 +9,6 @@ import { useAuth, useLogin } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { toast } from "sonner";
-import apiClient from "@/lib/api/client";
-import axios from "axios";
 
 export function LoginForm({
   className,
@@ -22,7 +20,7 @@ export function LoginForm({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const {loginMutation} = useAuth()
+  const login = useLogin()
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -33,7 +31,7 @@ export function LoginForm({
 
     try {
      
-      await loginMutation.mutateAsync(formData);
+      await login.mutateAsync(formData);
       const redirectUrl = searchParams.get("redirect") || "/dashboard";
       router.push(redirectUrl);
     } catch (error) {

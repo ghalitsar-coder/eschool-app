@@ -1,10 +1,9 @@
 // useAuth with TanStack Query integration
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
-import { useAuthStore } from "@/lib/stores/auth";
 import { authApi } from "@/lib/api/auth";
-import apiClient from "@/lib/api/client";
-import { useTokenCheck } from "./use-token-check";
+
+// useAuth.ts - Authentication hook with Zustand
+import { useAuthStore } from "@/lib/stores/auth";
 import { ApiResponse, LoginResponse } from "@/types/api";
 
 // Query keys for better cache management
@@ -13,20 +12,15 @@ export const authQueryKeys = {
   user: ["auth", "user"] as const,
 };
 
-
-
 export const useLogin = () => {
   const { login } = useAuthStore();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: authApi.login,
-    onSuccess: (response:ApiResponse<LoginResponse>) => {
-    
+    onSuccess: (response: ApiResponse<LoginResponse>) => {
+      login(response.data.user); // Type assertion for now
 
-    login(response.data.user); // Type assertion for now
-
-  
       queryClient.invalidateQueries({
         queryKey: authQueryKeys.profile,
       });
@@ -43,7 +37,6 @@ export const useRegister = () => {
     mutationFn: authApi.register,
     onSuccess: (data) => {
       if (data.data) {
-        
       } else {
         throw new Error(data.message || "Registrasi gagal");
       }
@@ -74,23 +67,6 @@ export const useLogout = () => {
   });
 };
 
-// export const useProfile = () => {
-//   const { user, isAuthenticated } = useAuthStore();
-
-//   return useQuery({
-//     queryKey: authQueryKeys.profile,
-//     queryFn: authApi.getProfile,
-//     enabled: !!user && isAuthenticated,
-//     select: (data) => data.data,
-//     staleTime: 5 * 60 * 1000, // 5 minutes
-//     retry: (failureCount, error: unknown) => {
-//       // Don't retry on 401 errors
-//       if (error?.response?.status === 401) return false;
-//       return failureCount < 3;
-//     },
-//   });
-// };
-
 export const useCurrentUser = () => {
   const { isAuthenticated, setUser, logout } = useAuthStore();
 
@@ -99,7 +75,7 @@ export const useCurrentUser = () => {
     queryFn: authApi.getCurrentUser,
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: (failureCount, error: unknown) => {
+    retry: (failureCount, error: any) => {
       // Don't retry on 401 errors
       if (error?.response?.status === 401) {
         logout(); // Clear auth state on 401
@@ -123,7 +99,6 @@ export const useChangePassword = () => {
     mutationFn: authApi.changePassword,
     onSuccess: (data) => {
       if (data.data) {
-        
       } else {
         throw new Error(data.message || "Gagal mengubah password");
       }
@@ -140,17 +115,14 @@ export const useRefreshToken = () => {
 
   return useMutation({
     mutationFn: authApi.refresh,
-    onSuccess: (data : LoginResponse) => {
-      
-       setUser(data.user);
+    onSuccess: (data: LoginResponse) => {
+      setUser(data.user);
 
-         
-
-        // Invalidate queries to refetch with new token
-        queryClient.invalidateQueries({
-          queryKey: authQueryKeys.profile,
-        });
-        queryClient.invalidateQueries({ queryKey: authQueryKeys.user });
+      // Invalidate queries to refetch with new token
+      queryClient.invalidateQueries({
+        queryKey: authQueryKeys.profile,
+      });
+      queryClient.invalidateQueries({ queryKey: authQueryKeys.user });
     },
     onError: () => {
       logout();
@@ -159,79 +131,102 @@ export const useRefreshToken = () => {
   });
 };
 
-// Main useAuth hook that combines everything
+// Hook to access authentication state and actions
 export const useAuth = () => {
-  const { user, isAuthenticated, updateUser } = useAuthStore();
-  const queryClient = useQueryClient();
-
-  // Initialize auth state on mount
-  const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser();
-
-  // Helper method for making authenticated API requests
-  const apiRequest = useCallback(
-    async <T>(endpoint: string, options: unknown = {}): Promise<T> => {
-      try {
-        const response = await apiClient.request<T>({
-          url: endpoint,
-          ...options,
-        });
-        return response.data;
-      } catch (error) {
-        // Error handling is already done in axios interceptor
-        throw error;
-      }
-    },
-    []
-  );
-
-  // Role checking helpers
-  const hasRole = useCallback(
-    (role: string) => {
-      return user?.role === role;
-    },
-    [user]
-  );
-
-  const hasAnyRole = useCallback(
-    (roles: string[]) => {
-      return user?.role ? roles.includes(user.role) : false;
-    },
-    [user]
-  );
-
-  return {
-    // State
+  const {
     user,
     isAuthenticated,
-    isLoadingUser,
-
-    // Mutations
-    loginMutation: useLogin(),
-    registerMutation: useRegister(),
-    logoutMutation: useLogout(),
-    changePasswordMutation: useChangePassword(),
-    refreshTokenMutation: useRefreshToken(),
-
-    // Queries
-    // profileQuery: useProfile(),
-
-    // Actions
+    login,
+    logout,
     updateUser,
+    setUser,
+    setToken,
+  } = useAuthStore();
 
-    // API helper
-    apiRequest,
+  // Check if user has a specific role
+  const hasRole = (role: string) => {
+    return user?.roles?.some((userRole) => userRole.role === role) || false;
+  };
 
-    // Role helpers
+  // Check if user has any of the specified roles
+  const hasAnyRole = (roles: string[]) => {
+    return (
+      user?.roles?.some((userRole) => roles.includes(userRole.role)) || false
+    );
+  };
+
+  // Get user's eschool ID for a specific role
+  const getEschoolIdForRole = (role: string) => {
+    const userRole = user?.roles?.find((userRole) => userRole.role === role);
+    return userRole ? userRole.eschool_id : null;
+  };
+
+  // Get all eschool IDs for user's roles
+  const getAllEschoolIds = () => {
+    return user?.roles?.map((userRole) => userRole.eschool_id) || [];
+  };
+
+  // Get user's primary role (highest priority)
+  const getPrimaryRole = () => {
+    if (!user?.roles || user.roles.length === 0) return null;
+
+    // Priority order: supervisor > coordinator > treasurer > member
+    const priorityOrder = ["supervisor", "coordinator", "treasurer", "member"];
+    const primaryRole = priorityOrder.find((role) =>
+      user.roles.some((userRole) => userRole.role === role)
+    );
+
+    return primaryRole || user.roles[0].role;
+  };
+
+  // Check if user is a staff member
+  const isStaff = hasRole("supervisor");
+
+  // Check if user is a coordinator
+  const isKoordinator = hasRole("coordinator");
+
+  // Check if user is a treasurer
+  const isBendahara = hasRole("treasurer");
+
+  // Check if user is a regular member
+  const isMember = hasRole("member");
+
+  // Get specific role data
+  const treasurerEschoolId = user?.roles?.find(
+    (data) => data.role === "treasurer"
+  )?.eschool_id;
+  const coordinatorEschoolId = user?.roles?.find(
+    (data) => data.role === "coordinator"
+  )?.eschool_id;
+  const supervisorEschoolId = user?.roles?.find(
+    (data) => data.role === "supervisor"
+  )?.eschool_id;
+
+  return {
+    // User data
+    user,
+    isAuthenticated,
+
+    // Role checks
     hasRole,
     hasAnyRole,
+    getPrimaryRole,
+    isStaff,
+    isKoordinator,
+    isBendahara,
+    isMember,
 
-    // Role shortcuts
-    isSiswa: hasRole("siswa"),
-    isBendahara: hasRole("bendahara"),
-    isKoordinator: hasRole("koordinator"),
-    isStaff: hasRole("staff"),
-
-    // Query client for manual cache management
-    queryClient,
+    // Eschool IDs for specific roles
+    treasurerEschoolId,
+    coordinatorEschoolId,
+    supervisorEschoolId,
+    getEschoolIdForRole,
+    getAllEschoolIds,
+    // Actions
+    login,
+    logout,
+    updateUser,
+    setUser,
+    setToken,
   };
 };

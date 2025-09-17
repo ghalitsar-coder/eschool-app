@@ -12,7 +12,7 @@ export const QueryProvider = ({ children }: QueryProviderProps) => {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 minute
+            staleTime: 5 * 60 * 1000, // 5 minute
             gcTime: 10 * 60 * 1000, // 10 minutes
             retry: (failureCount, error: Error) => {
               // Don't retry on 401 (authentication errors)
